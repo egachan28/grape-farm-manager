@@ -59,7 +59,34 @@ body{font-family:'Hiragino Kaku Gothic ProN','Noto Sans JP','Yu Gothic',sans-ser
 .bg-gray{background:var(--gray100);color:var(--gray600)}
 .bg-pink{background:#fdf2f8;color:#9d174d}
 .bg-cyan{background:#ecfeff;color:#0e7490}
-r:1.5px dashed var(--g400);border-radius:var(--rads);font-size:13px;background:#f0faf4;font-family:inherit}
+.stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px}
+.stat-card{background:var(--white);border-radius:var(--rad);border:1px solid var(--gray200);padding:18px 20px;box-shadow:var(--sh);position:relative;overflow:hidden}
+.stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
+.c-green::before{background:linear-gradient(90deg,var(--g400),var(--g200))}
+.c-purple::before{background:linear-gradient(90deg,var(--p400),#c4b5fd)}
+.c-amber::before{background:linear-gradient(90deg,var(--a400),var(--a200))}
+.c-red::before{background:linear-gradient(90deg,var(--r400),var(--r200))}
+.stat-label{font-size:11px;color:var(--gray500);margin-bottom:6px;font-weight:500}
+.stat-val{font-size:28px;font-weight:700;line-height:1}
+.stat-unit{font-size:13px;font-weight:500;color:var(--gray500);margin-left:2px}
+.stat-sub{font-size:11px;color:var(--gray400);margin-top:6px}
+.tw{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+thead th{padding:10px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--gray500);text-transform:uppercase;letter-spacing:.05em;border-bottom:2px solid var(--gray200);background:var(--gray50);white-space:nowrap}
+tbody td{padding:10px 12px;border-bottom:1px solid var(--gray100);color:var(--gray700);vertical-align:middle}
+tbody tr:last-child td{border-bottom:none}
+tbody tr:hover td{background:var(--g50)}
+tbody tr.warn-row td{background:var(--a50)}
+.fg{display:grid;gap:12px}
+.fg2{grid-template-columns:1fr 1fr}
+.fg3{grid-template-columns:1fr 1fr 1fr}
+.form-group label{display:block;font-size:11px;font-weight:700;color:var(--gray500);margin-bottom:5px;text-transform:uppercase;letter-spacing:.04em}
+.form-group input,.form-group select,.form-group textarea{width:100%;padding:8px 12px;border:1.5px solid var(--gray300);border-radius:var(--rads);font-size:13px;color:var(--gray800);background:var(--white);transition:border-color .15s;font-family:inherit}
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus{outline:none;border-color:var(--g400);box-shadow:0 0 0 3px rgba(76,175,125,.12)}
+.combo-wrap select{width:100%;padding:8px 12px;border:1.5px solid var(--gray300);border-radius:var(--rads);font-size:13px;color:var(--gray800);background:var(--white);cursor:pointer;font-family:inherit;transition:border-color .15s}
+.combo-wrap select:focus{outline:none;border-color:var(--g400);box-shadow:0 0 0 3px rgba(76,175,125,.12)}
+.combo-free{margin-top:5px;display:none}
+.combo-free input{width:100%;padding:7px 12px;border:1.5px dashed var(--g400);border-radius:var(--rads);font-size:13px;background:#f0faf4;font-family:inherit}
 .combo-free input:focus{outline:none;border-color:var(--g500)}
 .mo{display:none;position:fixed;inset:0;background:rgba(15,30,20,.45);z-index:200;align-items:center;justify-content:center}
 .mo.open{display:flex}
@@ -157,3 +184,1030 @@ r:1.5px dashed var(--g400);border-radius:var(--rads);font-size:13px;background:#
 }
 </style>
 </head>
+<body>
+<div class="loading-overlay" id="loading"><div class="spinner"></div><div style="font-size:13px;color:var(--gray600)">読み込み中...</div></div>
+<div class="toast" id="toast"></div>
+
+<aside class="sb">
+  <div class="sb-logo">
+    <span class="li">🍇</span>
+    <div class="lt">ブドウ栽培<br>管理システム</div>
+    <div class="ls" id="sb-sub">2023〜 / 丹波篠山</div>
+  </div>
+  <nav class="sb-nav">
+    <div class="nsl">メニュー</div>
+    <button class="ni active" onclick="showPage('dashboard',this)"><span class="ic">🏠</span><span>ダッシュボード</span></button>
+    <button class="ni" onclick="showPage('master',this)"><span class="ic">⚙️</span><span>マスタ管理</span></button>
+    <button class="ni" onclick="showPage('bojo',this)"><span class="ic">🧴</span><span>防除暦</span></button>
+    <button class="ni" onclick="showPage('history',this)"><span class="ic">📋</span><span>作業履歴</span></button>
+    <button class="ni" onclick="showPage('varieties',this)"><span class="ic">🌿</span><span>品種管理</span></button>
+    <button class="ni" onclick="showPage('pesticides',this)"><span class="ic">📦</span><span>農薬マスタ</span></button>
+    <button class="ni" onclick="showPage('ai',this)"><span class="ic">✨</span><span>AI防除提案</span></button>
+    <div class="nsl" style="margin-top:8px">データ</div>
+    <button class="ni" onclick="showPage('import',this)"><span class="ic">📥</span><span>過去データ取込</span></button>
+    <button class="ni" onclick="showPage('settings',this)"><span class="ic">🔧</span><span>設定</span></button>
+  </nav>
+  <div class="sb-bot">v1.0</div>
+</aside>
+
+<div class="main">
+  <header class="topbar">
+    <div>
+      <div class="topbar-title" id="page-title">ダッシュボード</div>
+      <div class="topbar-sub" id="page-sub">2025年 / 9本・4品種</div>
+    </div>
+    <div class="tr">
+      <span id="conn-badge" class="conn-status conn-wait">⚙️ 未接続</span>
+      <button class="btn btn-sm" onclick="printBojo()">🖨️ 防除暦を印刷</button>
+      <button class="btn btn-sm btn-primary" onclick="openModal('m-bojo')">＋ 防除記録を追加</button>
+    </div>
+  </header>
+  <main class="content">
+
+<!-- DASHBOARD -->
+<div class="page active" id="page-dashboard">
+  <div class="stat-grid">
+    <div class="stat-card c-green"><div class="stat-label">管理品種</div><div class="stat-val">4<span class="stat-unit">品種</span></div><div class="stat-sub">ナガノP・シャイン・雄宝・マイハート</div></div>
+    <div class="stat-card c-purple"><div class="stat-label">管理本数</div><div class="stat-val">9<span class="stat-unit">本</span></div><div class="stat-sub">2023〜2025年植え付け</div></div>
+    <div class="stat-card c-amber"><div class="stat-label" id="dash-bojo-label">今年の防除回数</div><div class="stat-val" id="dash-bojo-count">—<span class="stat-unit">回</span></div><div class="stat-sub" id="dash-bojo-sub">読み込み中...</div></div>
+    <div class="stat-card c-red"><div class="stat-label">使用回数アラート</div><div class="stat-val" id="dash-alert-count">—<span class="stat-unit">件</span></div><div class="stat-sub" id="dash-alert-sub">読み込み中...</div></div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 360px;gap:16px">
+    <div>
+      <div class="card">
+        <div class="card-title">📅 最近の作業 <button class="btn btn-sm btn-ghost" style="margin-left:auto" onclick="showPage('history',document.querySelector('.ni:nth-child(5)'))">すべて見る →</button></div>
+        <div class="tw"><table>
+          <thead><tr><th>日付</th><th>作業内容</th><th>カテゴリ</th><th>作業者</th><th>メモ</th></tr></thead>
+          <tbody id="dash-recent"></tbody>
+        </table></div>
+      </div>
+      <div class="card">
+        <div class="card-title">📊 農薬年間使用状況（<span id="dash-year-label">2025</span>年）</div>
+        <div id="dash-pest-bars"><div style="color:var(--gray400);font-size:13px">読み込み中...</div></div>
+      </div>
+    </div>
+    <div>
+      <div class="card">
+        <div class="card-title">⚠️ アラート</div>
+        <div id="dash-alerts"><div style="color:var(--gray400);font-size:13px">読み込み中...</div></div>
+      </div>
+      <div class="card">
+        <div class="card-title">📅 今後の作業予定（AI提案）</div>
+        <div id="dash-ai-preview" style="font-size:13px;color:var(--gray500)">AI防除提案タブで生成してください</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MASTER -->
+<div class="page" id="page-master">
+  <div class="tip">💡 ここで登録した項目は記録入力時にプルダウンで選択できます。直接入力との併用も可能です。変更は自動保存されます。</div>
+  <div class="master-grid">
+    <div class="mc"><div class="mc-hdr"><div class="mc-title">👤 作業者</div><span class="badge bg-gray" id="cnt-worker">0名</span></div><div class="mc-list" id="list-worker"></div><div class="mc-add"><div class="mc-row"><input type="text" id="inp-worker" placeholder="名前を入力..." onkeydown="if(event.key==='Enter')addMaster('worker')"><button class="btn btn-sm btn-primary" onclick="addMaster('worker')">追加</button></div></div></div>
+    <div class="mc"><div class="mc-hdr"><div class="mc-title">📋 作業内容</div><span class="badge bg-blue" id="cnt-task">0件</span></div><div class="mc-list" id="list-task"></div><div class="mc-add"><div class="mc-row"><input type="text" id="inp-task-name" placeholder="作業名..." onkeydown="if(event.key==='Enter')addMaster('task')"><select id="inp-task-cat" style="padding:7px 8px;border:1.5px solid var(--gray300);border-radius:var(--rads);font-size:12px;font-family:inherit;background:var(--white)"><option>管理作業</option><option>施肥・潅水</option><option>剪定・誘引</option><option>収穫</option><option>その他</option></select><button class="btn btn-sm btn-primary" onclick="addMaster('task')">追加</button></div></div></div>
+    <div class="mc"><div class="mc-hdr"><div class="mc-title">🦟 対象病害虫</div><span class="badge bg-amber" id="cnt-pest2">0件</span></div><div class="mc-list" id="list-pest2"></div><div class="mc-add"><div class="mc-row"><input type="text" id="inp-pest2" placeholder="例：灰色かび病" onkeydown="if(event.key==='Enter')addMaster('pest2')"><button class="btn btn-sm btn-primary" onclick="addMaster('pest2')">追加</button></div></div></div>
+    <div class="mc"><div class="mc-hdr"><div class="mc-title">💧 散布量プリセット</div><span class="badge bg-cyan" id="cnt-vol">0件</span></div><div class="mc-list" id="list-vol"></div><div class="mc-add"><div class="mc-row"><input type="text" id="inp-vol" placeholder="例：20L" onkeydown="if(event.key==='Enter')addMaster('vol')"><button class="btn btn-sm btn-primary" onclick="addMaster('vol')">追加</button></div></div></div>
+    <div class="mc"><div class="mc-hdr"><div class="mc-title">📝 メモテンプレート</div><span class="badge bg-gray" id="cnt-memo">0件</span></div><div class="mc-list" id="list-memo"></div><div class="mc-add"><div class="mc-row"><input type="text" id="inp-memo" placeholder="例：全棚完了" onkeydown="if(event.key==='Enter')addMaster('memo')"><button class="btn btn-sm btn-primary" onclick="addMaster('memo')">追加</button></div></div></div>
+    <div class="mc"><div class="mc-hdr"><div class="mc-title">ℹ️ 使い方</div></div><div style="padding:14px;font-size:12px;color:var(--gray600);line-height:1.8"><p>・各項目を追加すると入力フォームのプルダウンに反映されます</p><br><p>・「✍️ 直接入力」を選べばマスタにない名前も入力できます</p><br><p>・変更はGoogleスプレッドシートに自動保存されます</p></div></div>
+  </div>
+</div>
+
+<!-- 防除暦 -->
+<div class="page" id="page-bojo">
+  <div class="fbar">
+    <select id="bojo-year" onchange="loadBojo()"><option value="2025">2025年</option><option value="2024">2024年</option><option value="2023">2023年</option></select>
+    <span style="font-size:12px;color:var(--gray400)" id="bojo-count"></span>
+    <div class="sep"></div>
+    <button class="btn btn-sm" onclick="printBojo()">🖨️ 印刷/PDF</button>
+    <button class="btn btn-sm btn-primary" onclick="openModal('m-bojo')">＋ 記録を追加</button>
+  </div>
+  <div class="card" style="padding:0;overflow:hidden">
+    <div class="tw"><table>
+      <thead><tr><th>日付</th><th>農薬名</th><th>対象病害虫</th><th>希釈倍率</th><th>散布量</th><th>年間回数制限</th><th>収穫前日数</th><th>作業者</th><th>メモ</th><th>出典</th><th></th></tr></thead>
+      <tbody id="bojo-body"></tbody>
+    </table></div>
+    <div id="bojo-empty" style="display:none;text-align:center;padding:40px;color:var(--gray400)">この年の防除記録はありません</div>
+  </div>
+</div>
+
+<!-- 作業履歴 -->
+<div class="page" id="page-history">
+  <div class="fbar">
+    <select id="hist-year" onchange="loadHistory()"><option value="">全年</option><option value="2025" selected>2025年</option><option value="2024">2024年</option><option value="2023">2023年</option></select>
+    <select id="hist-cat" onchange="loadHistory()"><option value="">全カテゴリ</option><option>防除</option><option>管理作業</option><option>施肥・潅水</option><option>剪定・誘引</option><option>収穫</option><option>その他</option></select>
+    <select id="hist-variety" onchange="loadHistory()"><option value="">全品種</option><option>ナガノパープル</option><option>シャインマスカット</option><option>雄宝</option><option>マイハート</option><option>圃場全体</option></select>
+    <input type="text" id="hist-search" placeholder="🔍 キーワード..." style="width:140px" oninput="loadHistory()">
+    <div class="sep"></div>
+    <button class="btn btn-sm btn-primary" onclick="openModal('m-hist')">＋ 作業を追加</button>
+  </div>
+  <div class="card" style="padding:0;overflow:hidden">
+    <div class="tw"><table>
+      <thead><tr><th>日付</th><th>カテゴリ</th><th>作業内容</th><th>対象品種</th><th>作業者</th><th>メモ</th><th>出典</th><th></th></tr></thead>
+      <tbody id="hist-body"></tbody>
+    </table></div>
+    <div id="hist-empty" style="display:none;text-align:center;padding:40px;color:var(--gray400)">該当する作業記録がありません</div>
+  </div>
+</div>
+
+<!-- 品種管理 -->
+<div class="page" id="page-varieties">
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px;margin-bottom:20px">
+    <div class="card" style="margin-bottom:0"><div style="font-size:26px;margin-bottom:6px">🍇</div><span class="badge bg-purple">2023年植え付け</span><div style="font-size:16px;font-weight:700;margin:6px 0 2px">ナガノパープル</div><div style="font-size:12px;color:var(--gray500);margin-bottom:10px">1本 / 3年目（2025年現在）</div><div style="font-size:12px"><div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px dashed var(--gray100)"><span style="color:var(--gray500)">系統</span><span style="font-weight:600">欧州系</span></div><div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px dashed var(--gray100)"><span style="color:var(--gray500)">収穫期</span><span style="font-weight:600">9月上旬〜中旬</span></div><div style="display:flex;justify-content:space-between;padding:4px 0"><span style="color:var(--gray500)">特記</span><span style="font-weight:600">種なし処理不要</span></div></div></div>
+    <div class="card" style="margin-bottom:0"><div style="font-size:26px;margin-bottom:6px">🍈</div><span class="badge bg-purple">2023〜2024植え付け</span><div style="font-size:16px;font-weight:700;margin:6px 0 2px">シャインマスカット</div><div style="font-size:12px;color:var(--gray500);margin-bottom:10px">3本（2023×1、2024×2）</div><div style="font-size:12px"><div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px dashed var(--gray100)"><span style="color:var(--gray500)">系統</span><span style="font-weight:600">欧米雑種</span></div><div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px dashed var(--gray100)"><span style="color:var(--gray500)">収穫期</span><span style="font-weight:600">9月中旬〜10月上旬</span></div><div style="display:flex;justify-content:space-between;padding:4px 0"><span style="color:var(--gray500)">特記</span><span style="font-weight:600">ジベレリン処理必要</span></div></div></div>
+    <div class="card" style="margin-bottom:0"><div style="font-size:26px;margin-bottom:6px">🍑</div><span class="badge bg-green">2024〜2025植え付け</span><div style="font-size:16px;font-weight:700;margin:6px 0 2px">雄宝</div><div style="font-size:12px;color:var(--gray500);margin-bottom:10px">2本（2024×1、2025植え替え×1）</div><div style="font-size:12px"><div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px dashed var(--gray100)"><span style="color:var(--gray500)">系統</span><span style="font-weight:600">欧米雑種</span></div><div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px dashed var(--gray100)"><span style="color:var(--gray500)">収穫期</span><span style="font-weight:600">8月下旬〜9月上旬</span></div><div style="display:flex;justify-content:space-between;padding:4px 0"><span style="color:var(--gray500)">特記</span><span style="font-weight:600;color:var(--a600)">2024萌芽せず→2025植替</span></div></div></div>
+    <div class="card" style="margin-bottom:0"><div style="font-size:26px;margin-bottom:6px">❤️</div><span class="badge bg-green">2024年植え付け</span><div style="font-size:16px;font-weight:700;margin:6px 0 2px">マイハート</div><div style="font-size:12px;color:var(--gray500);margin-bottom:10px">4本 / 2年目（2025年現在）</div><div style="font-size:12px"><div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px dashed var(--gray100)"><span style="color:var(--gray500)">系統</span><span style="font-weight:600">欧米雑種</span></div><div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px dashed var(--gray100)"><span style="color:var(--gray500)">収穫期</span><span style="font-weight:600">8月下旬〜9月上旬</span></div><div style="display:flex;justify-content:space-between;padding:4px 0"><span style="color:var(--gray500)">特記</span><span style="font-weight:600">ハート型・種なし</span></div></div></div>
+  </div>
+  <div class="card">
+    <div class="card-title">🌱 植え付け年別サマリー</div>
+    <div class="tw"><table>
+      <thead><tr><th>植え付け年</th><th>品種・苗元</th><th>本数</th><th>樹齢（2025年現在）</th><th>備考</th></tr></thead>
+      <tbody>
+        <tr><td>2023年</td><td>ナガノパープル（国華園）、シャインマスカット（国華園）</td><td>各1本</td><td>3年目</td><td>—</td></tr>
+        <tr><td>2024年</td><td>シャインマスカット（志村葡萄研究所）×2<br>雄宝（志村葡萄研究所）×1<br>マイハート（菊池園芸・志村葡萄研究所）×4</td><td>計7本</td><td>2年目</td><td>—</td></tr>
+        <tr><td>2025年</td><td>雄宝（植え替え）</td><td>1本</td><td>1年目</td><td>2024年萌芽せず</td></tr>
+      </tbody>
+    </table></div>
+  </div>
+</div>
+
+<!-- 農薬マスタ -->
+<div class="page" id="page-pesticides">
+  <div class="fbar">
+    <input type="text" id="pest-search" placeholder="🔍 農薬名を検索..." style="width:200px" oninput="renderPestTable()">
+    <div class="sep"></div>
+    <button class="btn btn-sm btn-primary" onclick="openModal('m-pest')">＋ 農薬を登録</button>
+  </div>
+  <div class="card" style="padding:0;overflow:hidden">
+    <div class="tw"><table>
+      <thead><tr><th>農薬名</th><th>登録番号</th><th>種別</th><th>対象病害虫</th><th>希釈倍率</th><th>年間上限</th><th>収穫前日数</th><th>今年の使用</th><th>メモ</th><th></th></tr></thead>
+      <tbody id="pest-body"></tbody>
+    </table></div>
+    <div id="pest-empty" style="display:none;text-align:center;padding:40px;color:var(--gray400)">農薬マスタが空です</div>
+  </div>
+</div>
+
+<!-- AI防除提案 -->
+<div class="page" id="page-ai">
+  <div class="ai-hdr"><h2 style="font-size:18px;margin-bottom:6px">✨ AI防除プランアシスタント</h2><p style="font-size:13px;opacity:.85">過去の防除履歴・品種情報・地域の推奨暦をもとにClaudeがリアルタイムでアドバイスします。</p></div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+    <div>
+      <div class="card">
+        <div class="card-title">📌 過去データをもとに自動提案を生成</div>
+        <div class="tip">防除記録・作業履歴をClaudeが分析して今後のプランを提案します</div>
+        <div class="fg fg2" style="margin-bottom:12px">
+          <div class="form-group"><label>対象年</label><select id="ai-year"><option value="2025">2025年</option><option value="2026">2026年</option></select></div>
+          <div class="form-group"><label>主な懸念</label><select id="ai-concern"><option value="all">すべて</option><option value="beto">べと病</option><option value="hai">灰色かび病</option><option value="udon">ウドンコ病</option><option value="insect">害虫全般</option></select></div>
+        </div>
+        <button class="btn btn-primary" onclick="generateAIPlan()" id="ai-gen-btn">✨ AIに防除プランを提案させる</button>
+        <div id="ai-plan-result" style="margin-top:16px"></div>
+      </div>
+    </div>
+    <div>
+      <div class="card" style="padding:0;overflow:hidden;display:flex;flex-direction:column">
+        <div style="padding:14px 16px;border-bottom:1px solid var(--gray100)"><div class="card-title" style="margin-bottom:0">💬 AIに自由に相談する</div></div>
+        <div class="ai-msgs" id="ai-messages">
+          <div class="msg msg-ai"><div class="msg-sender">Claude</div><div class="bubble">こんにちは！ブドウの防除・栽培について何でも相談してください。過去の防除暦や品種情報も参考にしながらお答えします。</div></div>
+        </div>
+        <div class="ai-ibar">
+          <input type="text" id="ai-input" placeholder="例：梅雨時期の灰色かび病対策は？" onkeydown="if(event.key==='Enter')sendAI()">
+          <button class="btn btn-sm btn-primary" onclick="sendAI()" id="ai-send-btn">送信</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 過去データ取込 -->
+<div class="page" id="page-import">
+  <div class="card" style="border-left:4px solid var(--g400)">
+    <div class="card-title">📥 既存スプレッドシートから過去データを取込</div>
+    <p style="font-size:13px;color:var(--gray600);line-height:1.7;margin-bottom:16px">2つの既存スプレッドシート（2023年・2024年植え付け）を読み込み、防除暦と作業履歴に自動分類して新システムに取り込みます。</p>
+    <div style="margin-bottom:16px">
+      <div style="font-size:13px;font-weight:700;margin-bottom:8px">① 2023年植え付けシート（ナガノパープル・シャインマスカット）</div>
+      <div style="display:flex;gap:8px"><input type="text" id="url-2023" value="https://docs.google.com/spreadsheets/d/1agdGS4BoLUlOY2MA8gE_m1njt5GHwNjJ4hUdOB3xfyU/edit" style="flex:1;padding:8px 12px;border:1.5px solid var(--gray300);border-radius:var(--rads);font-size:13px;font-family:inherit"><button class="btn btn-primary btn-sm" onclick="loadImportSheet('2023')">📥 読み込む</button></div>
+      <div id="imp-status-2023"></div><div id="imp-preview-2023"></div>
+    </div>
+    <div style="margin-bottom:16px">
+      <div style="font-size:13px;font-weight:700;margin-bottom:8px">② 2024年植え付けシート（シャイン・雄宝・マイハート）</div>
+      <div style="display:flex;gap:8px"><input type="text" id="url-2024" value="https://docs.google.com/spreadsheets/d/1Jit1Fs479QJASgGx7i1IYHXmV3bTGHl3OH5-0L3drz0/edit" style="flex:1;padding:8px 12px;border:1.5px solid var(--gray300);border-radius:var(--rads);font-size:13px;font-family:inherit"><button class="btn btn-primary btn-sm" onclick="loadImportSheet('2024')">📥 読み込む</button></div>
+      <div id="imp-status-2024"></div><div id="imp-preview-2024"></div>
+    </div>
+    <button class="btn btn-primary" id="merge-btn" onclick="mergeImport()" disabled>🔗 スプレッドシートに取込む</button>
+    <div id="merge-status"></div>
+  </div>
+</div>
+
+<!-- 設定 -->
+<div class="page" id="page-settings">
+  <div class="card">
+    <div class="card-title">🔧 システム設定</div>
+    <div class="settings-box">
+      <div class="settings-title">☁️ Googleスプレッドシート連携（GAS）</div>
+      <div class="settings-row">
+        <label>GAS URL</label>
+        <input type="text" id="cfg-gas" placeholder="https://script.google.com/macros/s/..." oninput="saveCfg()">
+      </div>
+      <button class="btn btn-sm btn-primary" onclick="testGAS()">接続テスト</button>
+      <span id="gas-status" class="conn-status conn-wait" style="margin-left:8px">未テスト</span>
+    </div>
+    <div class="settings-box">
+      <div class="settings-title">✨ Claude AI（Anthropic API）</div>
+      <div class="settings-row">
+        <label>APIキー</label>
+        <input type="password" id="cfg-api" placeholder="sk-ant-..." oninput="saveCfg()">
+      </div>
+      <div style="font-size:11px;color:var(--gray500);margin-top:6px">キーは <a href="https://console.anthropic.com" target="_blank" style="color:var(--g500)">console.anthropic.com</a> で取得できます。このHTMLファイル内にのみ保存されます（ブラウザのlocalStorageは使用しません）。</div>
+    </div>
+    <div class="settings-box">
+      <div class="settings-title">📋 GASセットアップ手順</div>
+      <ol style="font-size:13px;color:var(--gray600);line-height:2;padding-left:20px">
+        <li>Googleスプレッドシート（新規）を開く</li>
+        <li>メニュー「拡張機能」→「Apps Script」をクリック</li>
+        <li>エディタに <strong>grape-gas.js</strong> の内容を全てコピペして保存（Ctrl+S）</li>
+        <li>「setupSheets」関数を選んで▶実行（シートが自動作成されます）</li>
+        <li>「デプロイ」→「新しいデプロイ」→種類「ウェブアプリ」</li>
+        <li>アクセスできるユーザー：「全員」に設定して「デプロイ」</li>
+        <li>表示されたURLをコピーして上の「GAS URL」欄に貼り付け</li>
+      </ol>
+    </div>
+  </div>
+</div>
+
+  </main>
+</div>
+
+<!-- MODAL: 防除記録追加 -->
+<div class="mo" id="m-bojo">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">🧴 防除記録を追加</div><button class="btn btn-sm btn-ghost" onclick="closeModal('m-bojo')">✕</button></div>
+    <div class="tip">💡 プルダウン選択 または ✍️直接入力 の両方が使えます。農薬名を選ぶと倍率などが自動入力されます。</div>
+    <div class="fg fg2">
+      <div class="form-group"><label>日付 *</label><input type="date" id="b-date"></div>
+      <div class="form-group"><label>作業者</label><div class="combo-wrap"><select id="b-worker-sel" onchange="comboSel(this,'b-worker-free')"><option value="">-- 選択 --</option></select><div class="combo-free"><input type="text" id="b-worker-free" placeholder="直接入力..."></div></div></div>
+    </div>
+    <div class="fg" style="margin-top:10px">
+      <div class="form-group"><label>農薬名 *</label><div class="combo-wrap"><select id="b-name-sel" onchange="comboSel(this,'b-name-free');autofillPest()"><option value="">-- 選択 --</option></select><div class="combo-free"><input type="text" id="b-name-free" placeholder="農薬名を直接入力..."></div></div></div>
+    </div>
+    <div class="fg fg2" style="margin-top:10px">
+      <div class="form-group"><label>対象病害虫</label><div class="combo-wrap"><select id="b-target-sel" onchange="comboSel(this,'b-target-free')"><option value="">-- 選択 --</option></select><div class="combo-free"><input type="text" id="b-target-free" placeholder="直接入力..."></div></div></div>
+      <div class="form-group"><label>希釈倍率</label><div class="combo-wrap"><select id="b-dil-sel" onchange="comboSel(this,'b-dil-free')"><option value="">-- 選択 --</option></select><div class="combo-free"><input type="text" id="b-dil-free" placeholder="例：500倍"></div></div></div>
+    </div>
+    <div class="fg fg3" style="margin-top:10px">
+      <div class="form-group"><label>散布量</label><div class="combo-wrap"><select id="b-vol-sel" onchange="comboSel(this,'b-vol-free')"><option value="">-- 選択 --</option></select><div class="combo-free"><input type="text" id="b-vol-free" placeholder="例：20L"></div></div></div>
+      <div class="form-group"><label>年間使用上限</label><input type="text" id="b-max" placeholder="例：4回"></div>
+      <div class="form-group"><label>収穫前日数</label><input type="text" id="b-pre" placeholder="例：収穫7日前まで"></div>
+    </div>
+    <div class="fg" style="margin-top:10px">
+      <div class="form-group"><label>メモ</label><div class="combo-wrap"><select id="b-memo-sel" onchange="comboSel(this,'b-memo-free')"><option value="">-- テンプレートから選択 --</option></select><div class="combo-free"><input type="text" id="b-memo-free" placeholder="直接入力..."></div></div></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('m-bojo')">キャンセル</button>
+      <button class="btn btn-primary" onclick="submitBojo()">✓ 保存する</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: 作業履歴追加 -->
+<div class="mo" id="m-hist">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">📋 作業を追加</div><button class="btn btn-sm btn-ghost" onclick="closeModal('m-hist')">✕</button></div>
+    <div class="tip">💡 プルダウン選択 または ✍️直接入力 の両方が使えます</div>
+    <div class="fg fg2">
+      <div class="form-group"><label>日付 *</label><input type="date" id="h-date"></div>
+      <div class="form-group"><label>作業者</label><div class="combo-wrap"><select id="h-worker-sel" onchange="comboSel(this,'h-worker-free')"><option value="">-- 選択 --</option></select><div class="combo-free"><input type="text" id="h-worker-free" placeholder="直接入力..."></div></div></div>
+    </div>
+    <div class="fg fg2" style="margin-top:10px">
+      <div class="form-group"><label>作業内容 *</label><div class="combo-wrap"><select id="h-title-sel" onchange="comboSel(this,'h-title-free');autofillTask()"><option value="">-- 選択 --</option></select><div class="combo-free"><input type="text" id="h-title-free" placeholder="直接入力..."></div></div></div>
+      <div class="form-group"><label>カテゴリ</label><select id="h-cat"><option>管理作業</option><option>防除</option><option>施肥・潅水</option><option>剪定・誘引</option><option>収穫</option><option>その他</option></select></div>
+    </div>
+    <div class="fg fg2" style="margin-top:10px">
+      <div class="form-group"><label>対象品種</label><select id="h-variety"><option>圃場全体</option><option>ナガノパープル</option><option>シャインマスカット</option><option>雄宝</option><option>マイハート</option></select></div>
+      <div class="form-group"><label>メモ</label><div class="combo-wrap"><select id="h-memo-sel" onchange="comboSel(this,'h-memo-free')"><option value="">-- テンプレートから選択 --</option></select><div class="combo-free"><input type="text" id="h-memo-free" placeholder="直接入力..."></div></div></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('m-hist')">キャンセル</button>
+      <button class="btn btn-primary" onclick="submitHistory()">✓ 保存する</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: 農薬登録 -->
+<div class="mo" id="m-pest">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">📦 農薬を登録</div><button class="btn btn-sm btn-ghost" onclick="closeModal('m-pest')">✕</button></div>
+    <div class="fg fg2">
+      <div class="form-group"><label>農薬名 *</label><input type="text" id="p-name" placeholder="フルピカ フロアブル"></div>
+      <div class="form-group"><label>登録番号</label><input type="text" id="p-reg" placeholder="第21199号"></div>
+    </div>
+    <div class="fg fg2" style="margin-top:10px">
+      <div class="form-group"><label>種別</label><select id="p-type"><option>殺菌剤</option><option>殺虫剤</option><option>殺菌殺虫剤</option><option>除草剤</option><option>その他</option></select></div>
+      <div class="form-group"><label>対象病害虫</label><input type="text" id="p-target" placeholder="灰色かび病・晩腐病"></div>
+    </div>
+    <div class="fg fg3" style="margin-top:10px">
+      <div class="form-group"><label>希釈倍率</label><input type="text" id="p-dil" placeholder="500倍"></div>
+      <div class="form-group"><label>年間上限</label><input type="text" id="p-max" placeholder="4回"></div>
+      <div class="form-group"><label>収穫前日数</label><input type="text" id="p-pre" placeholder="収穫7日前まで"></div>
+    </div>
+    <div class="fg" style="margin-top:10px">
+      <div class="form-group"><label>メモ</label><input type="text" id="p-memo" placeholder="任意"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('m-pest')">キャンセル</button>
+      <button class="btn btn-primary" onclick="submitPest()">✓ 登録する</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: 削除確認 -->
+<div class="mo" id="m-confirm">
+  <div class="modal" style="width:400px">
+    <div class="modal-header"><div class="modal-title">⚠️ 削除の確認</div></div>
+    <p id="confirm-msg" style="font-size:13px;color:var(--gray600);margin-bottom:8px"></p>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('m-confirm')">キャンセル</button>
+      <button class="btn btn-danger" id="confirm-ok-btn">削除する</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// =============================================
+// 設定（起動時にHTMLから読み込む）
+// =============================================
+let CFG = { gasUrl: '', apiKey: '' };
+
+function loadCfg() {
+  const stored = document.getElementById('cfg-gas').value || '';
+  const storedApi = document.getElementById('cfg-api').value || '';
+  CFG.gasUrl = stored;
+  CFG.apiKey = storedApi;
+}
+function saveCfg() {
+  CFG.gasUrl  = document.getElementById('cfg-gas').value.trim();
+  CFG.apiKey  = document.getElementById('cfg-api').value.trim();
+  updateConnBadge();
+}
+function updateConnBadge() {
+  const el = document.getElementById('conn-badge');
+  if (CFG.gasUrl && CFG.apiKey) {
+    el.className = 'conn-status conn-ok'; el.textContent = '✅ 接続済み';
+  } else if (CFG.gasUrl) {
+    el.className = 'conn-status conn-wait'; el.textContent = '⚙️ APIキー未設定';
+  } else {
+    el.className = 'conn-status conn-ng'; el.textContent = '❌ GAS未設定';
+  }
+}
+
+// =============================================
+// ナビゲーション
+// =============================================
+const pgLbl = {
+  dashboard: ['ダッシュボード','2025年 / 9本・4品種'],
+  master:    ['マスタ管理','作業者・農薬・作業名の登録'],
+  bojo:      ['防除暦','圃場全体 / 年別管理（印刷対応）'],
+  history:   ['作業履歴','全作業記録'],
+  varieties: ['品種管理','4品種 / 9本'],
+  pesticides:['農薬マスタ','登録農薬・使用回数管理'],
+  ai:        ['AI防除提案','Claudeによるリアルタイム分析'],
+  import:    ['過去データ取込','既存スプレッドシートを統合'],
+  settings:  ['設定','GAS URL・APIキーの設定'],
+};
+function showPage(id, btn) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.ni').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + id).classList.add('active');
+  if (btn) btn.classList.add('active');
+  const [t, s] = pgLbl[id] || [id, ''];
+  document.getElementById('page-title').textContent = t;
+  document.getElementById('page-sub').textContent = s;
+  if (id === 'bojo')      loadBojo();
+  if (id === 'history')   loadHistory();
+  if (id === 'pesticides') loadPestTable();
+  if (id === 'dashboard') loadDashboard();
+}
+
+function openModal(id) { refreshSelects(); document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.mo').forEach(el =>
+  el.addEventListener('click', e => { if (e.target === el) el.classList.remove('open'); }));
+
+function showLoading(v) {
+  document.getElementById('loading').className = 'loading-overlay' + (v ? ' show' : '');
+}
+function toast(msg, dur = 2500) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), dur);
+}
+
+// =============================================
+// GAS通信
+// =============================================
+async function gasGet(params) {
+  if (!CFG.gasUrl) throw new Error('GAS URLが設定されていません。設定画面で入力してください。');
+  const url = CFG.gasUrl + '?' + new URLSearchParams(params);
+  const res = await fetch(url);
+  const json = await res.json();
+  if (!json.ok) throw new Error(json.error || 'GASエラー');
+  return json;
+}
+async function gasPost(body) {
+  if (!CFG.gasUrl) throw new Error('GAS URLが設定されていません。');
+  const res = await fetch(CFG.gasUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const json = await res.json();
+  if (!json.ok) throw new Error(json.error || 'GASエラー');
+  return json;
+}
+async function testGAS() {
+  const el = document.getElementById('gas-status');
+  el.className = 'conn-status conn-wait'; el.textContent = 'テスト中...';
+  try {
+    await gasGet({ action: '' });
+    el.className = 'conn-status conn-ok'; el.textContent = '✅ 接続OK';
+    toast('GASに正常接続できました！');
+  } catch(e) {
+    el.className = 'conn-status conn-ng'; el.textContent = '❌ ' + e.message;
+  }
+}
+
+// =============================================
+// マスタデータ（GASから読み込み・保存）
+// =============================================
+let M = {
+  worker: ['山田','田中'],
+  task: [
+    {name:'雨よけビニール展張',cat:'管理作業'},{name:'雨よけビニール撤去',cat:'管理作業'},
+    {name:'液肥潅水開始',cat:'施肥・潅水'},{name:'液肥潅水終了',cat:'施肥・潅水'},
+    {name:'自動潅水開始',cat:'管理作業'},{name:'新梢誘引',cat:'剪定・誘引'},
+    {name:'摘芯',cat:'剪定・誘引'},{name:'摘粒',cat:'剪定・誘引'},
+    {name:'粗摘粒',cat:'剪定・誘引'},{name:'ジベレリン処理',cat:'管理作業'},
+    {name:'芽傷処理',cat:'管理作業'},{name:'枝管理',cat:'剪定・誘引'},
+    {name:'収穫',cat:'収穫'},{name:'本選定',cat:'管理作業'},
+  ],
+  pest2: ['灰色かび病','べと病','晩腐病','ウドンコ病','チャハマキ','コナカイガラムシ','アブラムシ','越冬病害虫'],
+  vol:   ['1L','10L','15L','18L','20L','25L','30L'],
+  memo:  ['全棚完了','圃場全体に散布','10本すべて','天気：晴れ','天気：曇り','収量確保のため実施'],
+};
+let pestMaster = []; // 農薬マスタ
+let bojoCache  = []; // 防除暦キャッシュ
+
+async function loadMaster() {
+  try {
+    const r = await gasGet({ action: 'getMaster' });
+    if (r.data) Object.assign(M, r.data);
+  } catch(e) { /* GAS未設定時はデフォルトを使用 */ }
+  renderMaster();
+}
+async function saveMasterToGAS() {
+  try { await gasPost({ action: 'saveMaster', master: M }); }
+  catch(e) { /* オフライン時は無視 */ }
+}
+async function loadPestMaster() {
+  try {
+    const r = await gasGet({ action: 'getPest' });
+    pestMaster = r.data || [];
+  } catch(e) {
+    pestMaster = [
+      {農薬名:'フルピカ フロアブル',登録番号:'第21199号',種別:'殺菌剤',対象病害虫:'灰色かび病・晩腐病',希釈倍率:'500倍',年間上限:'4回',収穫前日数:'収穫7日前まで',メモ:''},
+      {農薬名:'ペンコゼブ水和剤',登録番号:'第15660号',種別:'殺菌剤',対象病害虫:'べと病・晩腐病',希釈倍率:'600倍',年間上限:'5回',収穫前日数:'収穫14日前まで',メモ:''},
+      {農薬名:'トップジンM水和剤',登録番号:'第6044号',種別:'殺菌剤',対象病害虫:'灰色かび病・ウドンコ病',希釈倍率:'1500倍',年間上限:'5回',収穫前日数:'収穫14日前まで',メモ:''},
+      {農薬名:'ゼンターリ顆粒水和剤',登録番号:'第18279号',種別:'殺虫剤',対象病害虫:'チャハマキ・ブドウスカシバ',希釈倍率:'1000倍',年間上限:'3回',収穫前日数:'収穫前日まで',メモ:''},
+      {農薬名:'ダントツ水溶剤',登録番号:'第21156号',種別:'殺虫剤',対象病害虫:'コナカイガラムシ・アブラムシ',希釈倍率:'2000倍',年間上限:'3回',収穫前日数:'収穫7日前まで',メモ:''},
+      {農薬名:'石灰硫黄合剤',登録番号:'第0160号',種別:'殺菌殺虫剤',対象病害虫:'越冬病害虫',希釈倍率:'10〜20倍',年間上限:'—',収穫前日数:'—',メモ:'休眠期のみ'},
+    ];
+  }
+  renderPestTable();
+}
+
+// =============================================
+// マスタUI
+// =============================================
+function renderMaster() {
+  renderMList('list-worker', 'cnt-worker', M.worker.map(w => ({name:w})), 'worker', '名');
+  renderMList('list-task',   'cnt-task',   M.task,  'task',  '件');
+  renderMList('list-pest2',  'cnt-pest2',  M.pest2.map(p => ({name:p})), 'pest2', '件');
+  renderMList('list-vol',    'cnt-vol',    M.vol.map(v => ({name:v})),   'vol',   '件');
+  renderMList('list-memo',   'cnt-memo',   M.memo.map(m => ({name:m})),  'memo',  '件');
+}
+function renderMList(listId, cntId, items, type, unit) {
+  const el = document.getElementById(listId); if (!el) return;
+  el.innerHTML = items.map((item, i) => `
+    <div class="mc-item">
+      <div><div class="mc-name">${item.name}</div>${item.cat ? `<div class="mc-sub">${item.cat}</div>` : ''}</div>
+      <button class="btn btn-sm btn-ghost" onclick="removeMaster('${type}',${i})" style="color:var(--r400);padding:3px 7px;font-size:14px">✕</button>
+    </div>`).join('');
+  const cnt = document.getElementById(cntId);
+  if (cnt) cnt.textContent = items.length + unit;
+}
+function addMaster(type) {
+  let changed = false;
+  if (type === 'worker') { const v = document.getElementById('inp-worker').value.trim(); if (!v) return; M.worker.push(v); document.getElementById('inp-worker').value = ''; changed = true; }
+  else if (type === 'task') { const n = document.getElementById('inp-task-name').value.trim(); if (!n) return; M.task.push({name:n, cat:document.getElementById('inp-task-cat').value}); document.getElementById('inp-task-name').value = ''; changed = true; }
+  else if (type === 'pest2') { const v = document.getElementById('inp-pest2').value.trim(); if (!v) return; M.pest2.push(v); document.getElementById('inp-pest2').value = ''; changed = true; }
+  else if (type === 'vol') { const v = document.getElementById('inp-vol').value.trim(); if (!v) return; M.vol.push(v); document.getElementById('inp-vol').value = ''; changed = true; }
+  else if (type === 'memo') { const v = document.getElementById('inp-memo').value.trim(); if (!v) return; M.memo.push(v); document.getElementById('inp-memo').value = ''; changed = true; }
+  if (changed) { renderMaster(); saveMasterToGAS(); }
+}
+function removeMaster(type, i) {
+  if (type === 'worker') M.worker.splice(i, 1);
+  else if (type === 'task')  M.task.splice(i, 1);
+  else if (type === 'pest2') M.pest2.splice(i, 1);
+  else if (type === 'vol')   M.vol.splice(i, 1);
+  else if (type === 'memo')  M.memo.splice(i, 1);
+  renderMaster(); saveMasterToGAS();
+}
+
+// =============================================
+// コンボボックス
+// =============================================
+function fillSel(id, opts) {
+  const el = document.getElementById(id); if (!el) return;
+  el.innerHTML = '<option value="">-- 選択 --</option><option value="__free__">✍️ 直接入力する</option>'
+    + opts.map(o => `<option value="${o.v}">${o.l}</option>`).join('');
+}
+function refreshSelects() {
+  fillSel('b-worker-sel', M.worker.map(w => ({v:w, l:w})));
+  fillSel('b-name-sel',   pestMaster.map(p => ({v:p['農薬名'], l:p['農薬名']+(p['希釈倍率']?' ('+p['希釈倍率']+')':'')})));
+  fillSel('b-target-sel', M.pest2.map(p => ({v:p, l:p})));
+  fillSel('b-dil-sel',    [...new Set(pestMaster.filter(p=>p['希釈倍率']&&p['希釈倍率']!=='—').map(p=>p['希釈倍率']))].map(d => ({v:d, l:d})));
+  fillSel('b-vol-sel',    M.vol.map(v => ({v, l:v})));
+  fillSel('b-memo-sel',   M.memo.map(m => ({v:m, l:m})));
+  fillSel('h-worker-sel', M.worker.map(w => ({v:w, l:w})));
+  fillSel('h-title-sel',  M.task.map(t => ({v:t.name+'|||'+t.cat, l:t.name+' ['+t.cat+']'})));
+  fillSel('h-memo-sel',   M.memo.map(m => ({v:m, l:m})));
+}
+function comboSel(sel, freeId) {
+  const fEl = document.getElementById(freeId);
+  const wrap = fEl.closest('.combo-free');
+  if (sel.value === '__free__') { wrap.style.display = 'block'; fEl.focus(); sel.value = ''; }
+  else { wrap.style.display = 'none'; fEl.value = ''; }
+}
+function getCV(selId, freeId) {
+  const f = document.getElementById(freeId);
+  if (f && f.value.trim()) return f.value.trim();
+  const s = document.getElementById(selId);
+  if (s && s.value && s.value !== '__free__') return s.value.split('|||')[0];
+  return '';
+}
+function autofillPest() {
+  const name = getCV('b-name-sel', 'b-name-free');
+  const p = pestMaster.find(p => p['農薬名'] === name); if (!p) return;
+  const setCombo = (selId, freeId, val) => {
+    if (!val || val === '—') return;
+    const sel = document.getElementById(selId);
+    const opt = Array.from(sel.options).find(o => o.value === val);
+    const wrap = document.getElementById(freeId).closest('.combo-free');
+    if (opt) { sel.value = val; wrap.style.display = 'none'; document.getElementById(freeId).value = ''; }
+    else { sel.value = '__free__'; wrap.style.display = 'block'; document.getElementById(freeId).value = val; }
+  };
+  setCombo('b-dil-sel', 'b-dil-free', p['希釈倍率']);
+  setCombo('b-target-sel', 'b-target-free', p['対象病害虫']);
+  if (p['収穫前日数']) document.getElementById('b-pre').value = p['収穫前日数'];
+  if (p['年間上限'])   document.getElementById('b-max').value = p['年間上限'];
+}
+function autofillTask() {
+  const val = document.getElementById('h-title-sel').value;
+  if (val.includes('|||')) {
+    const cat = val.split('|||')[1];
+    const s = document.getElementById('h-cat');
+    const o = Array.from(s.options).find(o => o.value === cat);
+    if (o) s.value = cat;
+  }
+}
+
+// =============================================
+// 防除暦
+// =============================================
+async function loadBojo() {
+  const y = document.getElementById('bojo-year').value;
+  showLoading(true);
+  try {
+    const r = await gasGet({ action: 'getBojo', year: y });
+    bojoCache = r.data || [];
+    renderBojo(bojoCache);
+  } catch(e) {
+    renderBojo([]);
+    if (CFG.gasUrl) toast('⚠️ ' + e.message);
+  }
+  showLoading(false);
+}
+const SL = { new:'<span class="stag snew">新規</span>', '2023':'<span class="stag s23">2023</span>', '2024':'<span class="stag s24">2024</span>' };
+const CC = { 防除:'green',管理作業:'gray','施肥・潅水':'blue','剪定・誘引':'amber',収穫:'red',その他:'gray' };
+const VC = { 圃場全体:'green',ナガノパープル:'purple',シャインマスカット:'green',雄宝:'blue',マイハート:'pink' };
+
+function renderBojo(rows) {
+  const body = document.getElementById('bojo-body');
+  const empty = document.getElementById('bojo-empty');
+  document.getElementById('bojo-count').textContent = rows.length + '件';
+  if (!rows.length) { body.innerHTML = ''; empty.style.display = 'block'; return; }
+  empty.style.display = 'none';
+  body.innerHTML = rows.map(r => {
+    const limit = r['年間使用上限'] ? parseInt(r['年間使用上限']) : null;
+    const usedThis = bojoCache.filter(b => b['農薬名'] === r['農薬名'] && (b['日付']||'').startsWith(new Date().getFullYear())).length;
+    const warn = limit && usedThis >= limit - 1 ? ' class="warn-row"' : '';
+    return `<tr${warn}>
+      <td>${r['日付']||''}</td>
+      <td><strong>${r['農薬名']||''}</strong> ${SL[r['出典']]||''}</td>
+      <td>${r['対象病害虫']||'—'}</td><td>${r['希釈倍率']||'—'}</td><td>${r['散布量(L)']||'—'}</td>
+      <td>${r['年間使用上限']||'—'}</td><td style="font-size:12px">${r['収穫前日数']||'—'}</td>
+      <td>${r['作業者']||'—'}</td>
+      <td style="font-size:12px;color:var(--gray500)">${r['メモ']||''}</td>
+      <td>${SL[r['出典']]||''}</td>
+      <td><button class="btn btn-sm btn-ghost" onclick="confirmDelete('bojo',${r['_rowIndex']},'${r['農薬名']}')">🗑️</button></td>
+    </tr>`;
+  }).join('');
+}
+async function submitBojo() {
+  const d = document.getElementById('b-date').value;
+  const n = getCV('b-name-sel', 'b-name-free');
+  if (!d || !n) { alert('日付と農薬名は必須です'); return; }
+  showLoading(true);
+  try {
+    await gasPost({ action: 'addBojo', row: {
+      date: d.replace(/-/g,'/'), name: n,
+      reg: '', target: getCV('b-target-sel','b-target-free'),
+      dil: getCV('b-dil-sel','b-dil-free'),
+      vol: getCV('b-vol-sel','b-vol-free'),
+      maxUse: document.getElementById('b-max').value,
+      pre: document.getElementById('b-pre').value,
+      worker: getCV('b-worker-sel','b-worker-free'),
+      note: getCV('b-memo-sel','b-memo-free'),
+      source: 'new',
+    }});
+    closeModal('m-bojo');
+    toast('✅ 防除記録を保存しました');
+    await loadBojo();
+  } catch(e) { alert('保存エラー: ' + e.message); }
+  showLoading(false);
+}
+
+// =============================================
+// 作業履歴
+// =============================================
+async function loadHistory() {
+  showLoading(true);
+  try {
+    const params = {
+      action: 'getHistory',
+      year:    document.getElementById('hist-year').value,
+      cat:     document.getElementById('hist-cat').value,
+      variety: document.getElementById('hist-variety').value,
+      q:       document.getElementById('hist-search').value,
+    };
+    const r = await gasGet(params);
+    renderHistory(r.data || []);
+  } catch(e) {
+    renderHistory([]);
+    if (CFG.gasUrl) toast('⚠️ ' + e.message);
+  }
+  showLoading(false);
+}
+function renderHistory(rows) {
+  const body = document.getElementById('hist-body');
+  const empty = document.getElementById('hist-empty');
+  if (!rows.length) { body.innerHTML = ''; empty.style.display = 'block'; return; }
+  empty.style.display = 'none';
+  body.innerHTML = rows.map(r => `<tr>
+    <td>${r['日付']||''}</td>
+    <td><span class="badge bg-${CC[r['カテゴリ']]||'gray'}">${r['カテゴリ']||''}</span></td>
+    <td><strong>${r['作業内容']||''}</strong></td>
+    <td><span class="badge bg-${VC[r['対象品種']]||'gray'}">${r['対象品種']||''}</span></td>
+    <td>${r['作業者']||'—'}</td>
+    <td style="font-size:12px;color:var(--gray600)">${r['メモ']||''}</td>
+    <td>${SL[r['出典']]||''}</td>
+    <td><button class="btn btn-sm btn-ghost" onclick="confirmDelete('history',${r['_rowIndex']},'${r['作業内容']}')">🗑️</button></td>
+  </tr>`).join('');
+}
+async function submitHistory() {
+  const d = document.getElementById('h-date').value;
+  const t = getCV('h-title-sel', 'h-title-free');
+  if (!d || !t) { alert('日付と作業内容は必須です'); return; }
+  showLoading(true);
+  try {
+    await gasPost({ action: 'addHistory', row: {
+      date: d.replace(/-/g,'/'),
+      cat: document.getElementById('h-cat').value,
+      title: t,
+      variety: document.getElementById('h-variety').value,
+      worker: getCV('h-worker-sel','h-worker-free'),
+      memo: getCV('h-memo-sel','h-memo-free'),
+      source: 'new',
+    }});
+    closeModal('m-hist');
+    toast('✅ 作業履歴を保存しました');
+    await loadHistory();
+  } catch(e) { alert('保存エラー: ' + e.message); }
+  showLoading(false);
+}
+
+// =============================================
+// 農薬マスタ
+// =============================================
+function renderPestTable() {
+  loadPestMaster();
+}
+function loadPestTable() {
+  loadPestMaster().then(() => {
+    const q = (document.getElementById('pest-search').value || '').toLowerCase();
+    const rows = q ? pestMaster.filter(p => JSON.stringify(p).toLowerCase().includes(q)) : pestMaster;
+    const body = document.getElementById('pest-body');
+    const empty = document.getElementById('pest-empty');
+    if (!rows.length) { body.innerHTML = ''; empty.style.display = 'block'; return; }
+    empty.style.display = 'none';
+    const thisYear = new Date().getFullYear();
+    body.innerHTML = rows.map(p => {
+      const usedCount = bojoCache.filter(b => b['農薬名'] === p['農薬名'] && (b['日付']||'').startsWith(String(thisYear))).length;
+      const limit = p['年間上限'] ? parseInt(p['年間上限']) : null;
+      const warnC = limit && usedCount >= limit - 1 ? 'color:var(--r600);font-weight:700' : 'color:var(--g700)';
+      const typeC = p['種別'] === '殺虫剤' ? 'bg-amber' : 'bg-green';
+      return `<tr${limit && usedCount >= limit ? ' class="warn-row"' : ''}>
+        <td><strong>${p['農薬名']||''}</strong></td>
+        <td style="font-size:11px;color:var(--gray400)">${p['登録番号']||''}</td>
+        <td><span class="badge ${typeC}">${p['種別']||''}</span></td>
+        <td>${p['対象病害虫']||''}</td><td>${p['希釈倍率']||''}</td>
+        <td>${p['年間上限']||''}</td>
+        <td style="font-size:12px">${p['収穫前日数']||''}</td>
+        <td style="${warnC}">${usedCount}回${limit?' / '+limit+'回':''}</td>
+        <td style="font-size:12px;color:var(--gray500)">${p['メモ']||''}</td>
+        <td><button class="btn btn-sm btn-ghost" onclick="confirmDelete('pest',${p['_rowIndex']||0},'${p['農薬名']}')">🗑️</button></td>
+      </tr>`;
+    }).join('');
+  });
+}
+async function submitPest() {
+  const name = document.getElementById('p-name').value.trim();
+  if (!name) { alert('農薬名は必須です'); return; }
+  showLoading(true);
+  try {
+    await gasPost({ action: 'addPest', row: {
+      '農薬名': name, '登録番号': document.getElementById('p-reg').value,
+      '種別': document.getElementById('p-type').value,
+      '対象病害虫': document.getElementById('p-target').value,
+      '希釈倍率': document.getElementById('p-dil').value,
+      '年間上限': document.getElementById('p-max').value,
+      '収穫前日数': document.getElementById('p-pre').value,
+      'メモ': document.getElementById('p-memo').value,
+    }});
+    closeModal('m-pest');
+    toast('✅ 農薬を登録しました');
+    await loadPestMaster();
+    loadPestTable();
+  } catch(e) { alert('登録エラー: ' + e.message); }
+  showLoading(false);
+}
+
+// =============================================
+// 削除
+// =============================================
+let deleteTarget = null;
+function confirmDelete(type, rowIndex, name) {
+  deleteTarget = { type, rowIndex };
+  document.getElementById('confirm-msg').textContent = `「${name}」を削除しますか？この操作は元に戻せません。`;
+  document.getElementById('confirm-ok-btn').onclick = executeDelete;
+  openModal('m-confirm');
+}
+async function executeDelete() {
+  if (!deleteTarget) return;
+  const { type, rowIndex } = deleteTarget;
+  closeModal('m-confirm');
+  showLoading(true);
+  try {
+    const actionMap = { bojo:'deleteBojo', history:'deleteHistory', pest:'deletePest' };
+    await gasPost({ action: actionMap[type], rowIndex });
+    toast('✅ 削除しました');
+    if (type === 'bojo')    await loadBojo();
+    if (type === 'history') await loadHistory();
+    if (type === 'pest')    { await loadPestMaster(); loadPestTable(); }
+  } catch(e) { alert('削除エラー: ' + e.message); }
+  showLoading(false);
+  deleteTarget = null;
+}
+
+// =============================================
+// ダッシュボード
+// =============================================
+async function loadDashboard() {
+  const y = new Date().getFullYear();
+  document.getElementById('dash-year-label').textContent = y;
+  try {
+    // 最近の作業
+    const hr = await gasGet({ action: 'getHistory' });
+    const hist = (hr.data || []).slice(0, 6);
+    document.getElementById('dash-recent').innerHTML = hist.map(r => `<tr>
+      <td>${r['日付']||''}</td><td><strong>${r['作業内容']||''}</strong></td>
+      <td><span class="badge bg-${CC[r['カテゴリ']]||'gray'}">${r['カテゴリ']||''}</span></td>
+      <td>${r['作業者']||'—'}</td><td style="font-size:12px;color:var(--gray500)">${r['メモ']||''}</td>
+    </tr>`).join('') || '<tr><td colspan="5" style="color:var(--gray400);text-align:center">記録がありません</td></tr>';
+    // 今年の防除
+    const br = await gasGet({ action: 'getBojo', year: String(y) });
+    bojoCache = br.data || [];
+    const bc = bojoCache.length;
+    document.getElementById('dash-bojo-count').innerHTML = bc + '<span class="stat-unit">回</span>';
+    document.getElementById('dash-bojo-sub').textContent = y + '年の防除実施回数';
+    // アラート
+    const alerts = [];
+    const usageMap = {};
+    bojoCache.forEach(b => { usageMap[b['農薬名']] = (usageMap[b['農薬名']] || 0) + 1; });
+    pestMaster.forEach(p => {
+      const limit = parseInt(p['年間上限']);
+      const used = usageMap[p['農薬名']] || 0;
+      if (limit && used >= limit - 1) {
+        alerts.push({ icon: used >= limit ? '🔴' : '🟡', title: p['農薬名'] + ' — 残' + (limit - used) + '回', body: `今年${used}回使用済み / 年間上限${limit}回` });
+      }
+    });
+    document.getElementById('dash-alert-count').innerHTML = alerts.length + '<span class="stat-unit">件</span>';
+    document.getElementById('dash-alert-sub').textContent = '農薬使用回数の警告';
+    document.getElementById('dash-alerts').innerHTML = alerts.length
+      ? alerts.map(a => `<div class="al-item"><span class="al-icon">${a.icon}</span><div><div class="al-title">${a.title}</div><div class="al-body">${a.body}</div></div></div>`).join('')
+      : '<div style="color:var(--gray400);font-size:13px;padding:12px 0">アラートはありません</div>';
+    // 農薬使用状況バー
+    const bars = Object.entries(usageMap).map(([name, used]) => {
+      const p = pestMaster.find(p => p['農薬名'] === name);
+      const limit = p ? parseInt(p['年間上限']) || 0 : 0;
+      const pct = limit ? Math.min(100, used / limit * 100) : 50;
+      const col = pct >= 75 ? 'var(--r400)' : pct >= 50 ? 'var(--a400)' : 'var(--g400)';
+      return `<div class="pest-usage-bar"><div class="name" title="${name}">${name}</div><div class="bar-wrap"><div class="pb-bg"><div class="pb" style="width:${pct}%;background:${col}"></div></div></div><div class="count" style="color:${pct>=75?'var(--r600)':'var(--gray700)'}">${used}${limit?'/'+limit:''}回</div></div>`;
+    });
+    document.getElementById('dash-pest-bars').innerHTML = bars.join('') || '<div style="color:var(--gray400);font-size:13px">今年の防除記録がありません</div>';
+  } catch(e) {
+    if (CFG.gasUrl) toast('⚠️ ダッシュボード読み込みエラー: ' + e.message);
+  }
+}
+
+// =============================================
+// Claude AI
+// =============================================
+async function sendAI() {
+  if (!CFG.apiKey) { alert('設定画面でClaude APIキーを入力してください。'); showPage('settings', document.querySelector('.ni:last-child')); return; }
+  const inp = document.getElementById('ai-input');
+  const text = inp.value.trim(); if (!text) return;
+  const box = document.getElementById('ai-messages');
+  box.insertAdjacentHTML('beforeend', `<div class="msg msg-user"><div class="msg-sender">あなた</div><div class="bubble">${text}</div></div>`);
+  inp.value = '';
+  const typingEl = document.createElement('div');
+  typingEl.className = 'ai-typing'; typingEl.id = 'ai-typing'; typingEl.textContent = 'Claude が入力中...';
+  box.appendChild(typingEl);
+  box.scrollTop = box.scrollHeight;
+  document.getElementById('ai-send-btn').disabled = true;
+  const context = `あなたはブドウ栽培の専門アドバイザーです。以下の圃場情報をもとに回答してください。
+【圃場情報】場所：兵庫県丹波篠山市、品種：ナガノパープル(1本/2023年)・シャインマスカット(3本/2023〜2024年)・雄宝(2本/2024〜2025年)・マイハート(4本/2024年)
+【栽培方式】8ポット圃場、雨よけ栽培
+【最新防除実績】${bojoCache.slice(0,5).map(b=>b['日付']+' '+b['農薬名']+'('+b['希釈倍率']+')').join('、')}
+質問に対して具体的かつ実践的に日本語で回答してください。`;
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': CFG.apiKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
+      body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 1000, system: context, messages: [{ role: 'user', content: text }] }),
+    });
+    const data = await res.json();
+    const reply = data.content?.[0]?.text || 'エラーが発生しました。';
+    document.getElementById('ai-typing')?.remove();
+    box.insertAdjacentHTML('beforeend', `<div class="msg msg-ai"><div class="msg-sender">Claude</div><div class="bubble">${reply}</div></div>`);
+  } catch(e) {
+    document.getElementById('ai-typing')?.remove();
+    box.insertAdjacentHTML('beforeend', `<div class="msg msg-ai"><div class="msg-sender">エラー</div><div class="bubble" style="color:var(--r600)">APIエラー: ${e.message}</div></div>`);
+  }
+  box.scrollTop = box.scrollHeight;
+  document.getElementById('ai-send-btn').disabled = false;
+}
+
+async function generateAIPlan() {
+  if (!CFG.apiKey) { alert('設定画面でClaude APIキーを入力してください。'); return; }
+  const btn = document.getElementById('ai-gen-btn');
+  btn.disabled = true; btn.textContent = '⏳ 分析中...';
+  const result = document.getElementById('ai-plan-result');
+  result.innerHTML = '<div style="color:var(--gray400);font-size:13px">Claudeが防除履歴を分析しています...</div>';
+  const yr = document.getElementById('ai-year').value;
+  const concern = document.getElementById('ai-concern').value;
+  const bojoSummary = bojoCache.map(b => `${b['日付']} ${b['農薬名']} ${b['希釈倍率']} (${b['対象病害虫']||'—'})`).join('\n');
+  const prompt = `丹波篠山市のブドウ圃場（8ポット栽培）の${yr}年の防除プランを提案してください。
+品種：ナガノパープル・シャインマスカット・雄宝・マイハート（計9本）
+主な懸念：${concern === 'all' ? '全般（べと病・灰色かび病・ウドンコ病・害虫）' : concern}
+過去の防除記録（直近）：\n${bojoSummary || '記録なし'}
+農薬マスタ：${pestMaster.map(p=>p['農薬名']+'('+p['年間上限']+'制限)').join('、')}
+月別の推奨防除スケジュール、使用農薬、注意事項を具体的に提案してください。年間使用回数制限にも注意してください。`;
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': CFG.apiKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
+      body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 2000, messages: [{ role: 'user', content: prompt }] }),
+    });
+    const data = await res.json();
+    const reply = (data.content?.[0]?.text || 'エラーが発生しました。').replace(/\n/g, '<br>');
+    result.innerHTML = `<div style="background:var(--g50);border:1px solid var(--g200);border-radius:var(--rads);padding:16px;font-size:13px;line-height:1.8;color:var(--gray700)">${reply}</div>`;
+    document.getElementById('dash-ai-preview').textContent = 'AI提案が生成されました → AI防除提案タブで確認';
+  } catch(e) {
+    result.innerHTML = `<div style="color:var(--r600);font-size:13px">エラー: ${e.message}</div>`;
+  }
+  btn.disabled = false; btn.textContent = '✨ AIに防除プランを提案させる';
+}
+
+// =============================================
+// 印刷
+// =============================================
+function printBojo() {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-bojo').classList.add('active');
+  document.getElementById('page-bojo').classList.add('print-target');
+  window.print();
+  document.getElementById('page-bojo').classList.remove('print-target');
+}
+
+// =============================================
+// 過去データ取込
+// =============================================
+let impData = { '2023': [], '2024': [] };
+function parseCSV(text) {
+  return text.split('\n').map(line => {
+    const c = []; let cur = '', q = false;
+    for (const ch of line) { if (ch === '"') q = !q; else if (ch === ',' && !q) { c.push(cur.trim()); cur = ''; } else cur += ch; }
+    c.push(cur.trim()); return c;
+  }).filter(r => r.some(c => c));
+}
+const PK = ['ゼンターリ','ダントツ','フルピカ','ペンコゼブ','トップジン','スクレア','モスピラン','石灰硫黄','ボルドー','MP1','GRG'];
+function isPest(t) { return t && PK.some(k => t.includes(k)); }
+function normDate(s) {
+  if (!s) return '';
+  s = String(s).trim().split('〜')[0].split('~')[0].trim();
+  if (/^\d{4}\/\d{1,2}\/\d{1,2}/.test(s)) return s.substring(0, 10);
+  const m = s.match(/^(\d{1,2})\/(\d{1,2})$/);
+  if (m) { const mo = parseInt(m[1]); const yr = mo >= 1 && mo <= 8 ? 2024 : 2023; return `${yr}/${m[1].padStart(2,'0')}/${m[2].padStart(2,'0')}`; }
+  return '';
+}
+function guessCat(text) {
+  if (!text) return 'その他';
+  if (/液肥|潅水|リッチフィード|灌水/.test(text)) return '施肥・潅水';
+  if (/剪定|誘引|摘芯|芽傷|摘粒|粗滴/.test(text)) return '剪定・誘引';
+  if (/収穫/.test(text)) return '収穫';
+  return '管理作業';
+}
+function impStatus(id, type, msg) {
+  const cols = { success: 'var(--g100)|var(--g700)', loading: 'var(--b50)|var(--b600)', error: 'var(--r50)|var(--r600)' };
+  const [bg, fc] = cols[type].split('|');
+  document.getElementById(id).innerHTML = `<div style="display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:var(--rads);margin-top:10px;font-size:13px;font-weight:600;background:${bg};color:${fc}">${type==='loading'?'⏳':type==='success'?'✅':'❌'} ${msg}</div>`;
+}
+async function loadImportSheet(year) {
+  const url = document.getElementById('url-' + year).value.trim();
+  const m = url.match(/\/d\/([a-zA-Z0-9_-]+)/); if (!m) { impStatus('imp-status-'+year,'error','URLの形式が正しくありません'); return; }
+  impStatus('imp-status-' + year, 'loading', '読み込み中...');
+  try {
+    const res = await fetch(`https://docs.google.com/spreadsheets/d/${m[1]}/export?format=csv&gid=0`);
+    if (!res.ok) throw new Error();
+    impData[year] = parseCSV(await res.text());
+    impStatus('imp-status-' + year, 'success', (impData[year].length - 1) + '行のデータを読み込みました');
+  } catch {
+    impData[year] = year === '2023'
+      ? [['日時','シャインマスカット/国華園','潅水量','倍率','散布量','ナガノパープル/国華園','潅水量','倍率','散布量','メモ'],['03/18','シャワーで手潅水','','','','シャワーで手潅水','','','',''],['03/29','石灰硫黄合剤','','10','2ℓ','石灰硫黄合剤','','10','2ℓ','10本すべて'],['05/13','ゼンターリ','','1000','18ℓ','ゼンターリ','','1000','18ℓ','10本すべて'],['6/9','ダントツ','','2000','20ℓ','ダントツ','','2000','20ℓ','']]
+      : [['日付','シャイン北','シャイン南','雄宝北','雄宝南','マイハート北','マイハート南','マイハート志村北','マイハート志村南','倍率','量','潅水量','回数','メモ'],['03/18','シャワーで手潅水','シャワーで手潅水','シャワーで手潅水','シャワーで手潅水','シャワーで手潅水','シャワーで手潅水','シャワーで手潅水','シャワーで手潅水','','','','',''],['03/29','石灰硫黄合剤','石灰硫黄合剤','石灰硫黄合剤','石灰硫黄合剤','石灰硫黄合剤','石灰硫黄合剤','石灰硫黄合剤','石灰硫黄合剤','','','','',''],['05/13','ゼンターリ','ゼンターリ','ゼンターリ','ゼンターリ','ゼンターリ','ゼンターリ','ゼンターリ','ゼンターリ','1000','','18ℓ','','グラミンン']];
+    impStatus('imp-status-' + year, 'success', 'デモデータを読み込みました（本番接続後は実データを取込）');
+  }
+  document.getElementById('merge-btn').disabled = false;
+}
+async function mergeImport() {
+  showLoading(true);
+  let ab = 0, ah = 0;
+  const posts = [];
+  impData['2023'].slice(1).forEach(r => {
+    const date = normDate(r[0]); if (!date) return;
+    [[r[1],r[3],r[4],'シャインマスカット'],[r[5],r[7],r[8],'ナガノパープル']].forEach(([act,dil,vol,variety]) => {
+      if (!act) return;
+      if (isPest(act)) { posts.push(gasPost({action:'addBojo',row:{date,name:act,target:'',dil:dil||'',vol:vol||'',maxUse:'',pre:'',worker:'',note:r[9]||'',source:'2023'}})); ab++; }
+      else { posts.push(gasPost({action:'addHistory',row:{date,cat:guessCat(act),title:act,variety,worker:'',memo:(dil?'倍率:'+dil+' ':'')+(vol||'')+(r[9]?' '+r[9]:''),source:'2023'}})); ah++; }
+    });
+  });
+  impData['2024'].slice(1).forEach(r => {
+    const date = normDate(r[0]); if (!date) return;
+    const dil = r[9]||'', vol = r[10]||r[11]||'', memo = r[13]||'';
+    const acts = new Set(); for (let i=1;i<=8;i++) { if(r[i]) acts.add(r[i]); }
+    acts.forEach(act => {
+      if (isPest(act)) { posts.push(gasPost({action:'addBojo',row:{date,name:act,target:'',dil,vol,maxUse:'',pre:'',worker:'',note:memo,source:'2024'}})); ab++; }
+      else { posts.push(gasPost({action:'addHistory',row:{date,cat:guessCat(act),title:act,variety:'圃場全体',worker:'',memo:(dil?'倍率:'+dil+' ':'')+(vol||'')+(memo?' '+memo:''),source:'2024'}})); ah++; }
+    });
+  });
+  try {
+    await Promise.all(posts);
+    document.getElementById('merge-status').innerHTML = `<div style="display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:var(--rads);margin-top:10px;font-size:13px;font-weight:600;background:var(--g100);color:var(--g700)">✅ 統合完了！ 防除記録 +${ab}件 / 作業履歴 +${ah}件 をスプレッドシートに保存しました</div>`;
+    toast('✅ 過去データの取込が完了しました！');
+  } catch(e) {
+    document.getElementById('merge-status').innerHTML = `<div style="color:var(--r600);font-size:13px;margin-top:10px">⚠️ エラー: ${e.message}</div>`;
+  }
+  showLoading(false);
+}
+
+// =============================================
+// 初期化
+// =============================================
+async function init() {
+  updateConnBadge();
+  await Promise.all([loadMaster(), loadPestMaster()]);
+  await loadDashboard();
+}
+init();
+</script>
+</body>
+</html>
