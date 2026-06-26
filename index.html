@@ -405,7 +405,7 @@ tbody tr.warn-row td{background:var(--a50)}
       <div class="settings-title">☁️ Googleスプレッドシート連携（GAS）</div>
       <div class="settings-row">
         <label>GAS URL</label>
-        <input type="text" id="cfg-gas" placeholder="https://script.google.com/macros/s/..." oninput="saveCfg()">
+        <input type="text" id="cfg-gas" placeholder="https://script.google.com/macros/s/..." value="https://script.google.com/macros/s/AKfycbzFTt038uXCc8Z9A3uaKaoMYvkJOXsMb8n0ZDB7YWodZMFyA3M1M3VBztF4wfbIXY2njA/exec" oninput="saveCfg()">
       </div>
       <button class="btn btn-sm btn-primary" onclick="testGAS()">接続テスト</button>
       <span id="gas-status" class="conn-status conn-wait" style="margin-left:8px">未テスト</span>
@@ -534,7 +534,7 @@ tbody tr.warn-row td{background:var(--a50)}
 // =============================================
 // 設定（起動時にHTMLから読み込む）
 // =============================================
-let CFG = { gasUrl: '', apiKey: '' };
+let CFG = { gasUrl: 'https://script.google.com/macros/s/AKfycbzFTt038uXCc8Z9A3uaKaoMYvkJOXsMb8n0ZDB7YWodZMFyA3M1M3VBztF4wfbIXY2njA/exec', apiKey: '' };
 
 function loadCfg() {
   const stored = document.getElementById('cfg-gas').value || '';
@@ -621,15 +621,12 @@ async function gasGet(params) {
 }
 async function gasPost(body) {
   if (!CFG.gasUrl) throw new Error('__NO_GAS__');
+  // GASはCORSのためPOSTをGETに変換して送信
+  const url = CFG.gasUrl + '?method=POST&data=' + encodeURIComponent(JSON.stringify(body));
   const controller = new AbortController();
-  const tid = setTimeout(() => controller.abort(), 6000);
+  const tid = setTimeout(() => controller.abort(), 10000);
   try {
-    const res = await fetch(CFG.gasUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-      signal: controller.signal,
-    });
+    const res = await fetch(url, { signal: controller.signal });
     clearTimeout(tid);
     const json = await res.json();
     if (!json.ok) throw new Error(json.error || 'GASエラー');
