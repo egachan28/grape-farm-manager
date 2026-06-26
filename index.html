@@ -604,10 +604,10 @@ function toast(msg, dur = 2500) {
 // GAS通信
 // =============================================
 async function gasGet(params) {
-  if (!CFG.gasUrl) throw new Error('GAS URLが設定されていません。');
+  if (!CFG.gasUrl) throw new Error('__NO_GAS__');
   const url = CFG.gasUrl + '?' + new URLSearchParams(params);
   const controller = new AbortController();
-  const tid = setTimeout(() => controller.abort(), 8000);
+  const tid = setTimeout(() => controller.abort(), 6000);
   try {
     const res = await fetch(url, {signal: controller.signal});
     clearTimeout(tid);
@@ -620,15 +620,24 @@ async function gasGet(params) {
   }
 }
 async function gasPost(body) {
-  if (!CFG.gasUrl) throw new Error('GAS URLが設定されていません。');
-  const res = await fetch(CFG.gasUrl, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  const json = await res.json();
-  if (!json.ok) throw new Error(json.error || 'GASエラー');
-  return json;
+  if (!CFG.gasUrl) throw new Error('__NO_GAS__');
+  const controller = new AbortController();
+  const tid = setTimeout(() => controller.abort(), 6000);
+  try {
+    const res = await fetch(CFG.gasUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+    clearTimeout(tid);
+    const json = await res.json();
+    if (!json.ok) throw new Error(json.error || 'GASエラー');
+    return json;
+  } catch(e) {
+    clearTimeout(tid);
+    throw e;
+  }
 }
 async function testGAS() {
   const el = document.getElementById('gas-status');
@@ -664,10 +673,11 @@ let pestMaster = []; // 農薬マスタ
 let bojoCache  = []; // 防除暦キャッシュ
 
 async function loadMaster() {
+  if (!CFG.gasUrl) { renderMaster(); return; }
   try {
     const r = await gasGet({ action: 'getMaster' });
     if (r.data) Object.assign(M, r.data);
-  } catch(e) { /* GAS未設定時はデフォルトを使用 */ }
+  } catch(e) { console.log('Master load error:', e.message); }
   renderMaster();
 }
 async function saveMasterToGAS() {
@@ -675,6 +685,7 @@ async function saveMasterToGAS() {
   catch(e) { /* オフライン時は無視 */ }
 }
 async function loadPestMaster() {
+  if (!CFG.gasUrl) { renderPestTable(); return; }
   try {
     const r = await gasGet({ action: 'getPest' });
     pestMaster = r.data || [];
@@ -792,6 +803,7 @@ function autofillTask() {
 // =============================================
 async function loadBojo() {
   const y = document.getElementById('bojo-year').value;
+  if (!CFG.gasUrl) { renderBojo([]); document.getElementById('bojo-empty').textContent='設定画面でGAS URLを入力してください'; document.getElementById('bojo-empty').style.display='block'; return; }
   showLoading(true);
   try {
     const r = await gasGet({ action: 'getBojo', year: y });
@@ -799,7 +811,7 @@ async function loadBojo() {
     renderBojo(bojoCache);
   } catch(e) {
     renderBojo([]);
-    if (CFG.gasUrl) toast('⚠️ ' + e.message);
+    toast('⚠️ ' + e.message);
   }
   showLoading(false);
 }
@@ -857,6 +869,7 @@ async function submitBojo() {
 // 作業履歴
 // =============================================
 async function loadHistory() {
+  if (!CFG.gasUrl) { renderHistory([]); return; }
   showLoading(true);
   try {
     const params = {
@@ -870,7 +883,7 @@ async function loadHistory() {
     renderHistory(r.data || []);
   } catch(e) {
     renderHistory([]);
-    if (CFG.gasUrl) toast('⚠️ ' + e.message);
+    toast('⚠️ ' + e.message);
   }
   showLoading(false);
 }
@@ -1001,6 +1014,14 @@ async function executeDelete() {
 async function loadDashboard() {
   const y = new Date().getFullYear();
   document.getElementById('dash-year-label').textContent = y;
+  if (!CFG.gasUrl) {
+    document.getElementById('dash-recent').innerHTML = '<tr><td colspan="5" style="color:var(--gray400);text-align:center">GAS URLを設定画面で入力してください</td></tr>';
+    document.getElementById('dash-alerts').innerHTML = '<div style="color:var(--gray400);font-size:13px;padding:8px 0">設定画面でGAS URLを入力してください</div>';
+    document.getElementById('dash-pest-bars').innerHTML = '<div style="color:var(--gray400);font-size:13px">GAS URL未設定</div>';
+    document.getElementById('dash-bojo-count').innerHTML = '—<span class="stat-unit">回</span>';
+    document.getElementById('dash-alert-count').innerHTML = '—<span class="stat-unit">件</span>';
+    return;
+  }
   try {
     // 最近の作業
     const hr = await gasGet({ action: 'getHistory' });
@@ -1210,15 +1231,19 @@ async function mergeImport() {
 // =============================================
 // 初期化
 // =============================================
-async function init() {
+function init() {
   updateConnBadge();
-  // GAS未設定時もUIを表示するためtry/catch
-  try {
-    await Promise.all([loadMaster(), loadPestMaster()]);
-  } catch(e) { console.log('Master load skipped:', e.message); }
-  try {
-    await loadDashboard();
-  } catch(e) { console.log('Dashboard load skipped:', e.message); }
+  // まずUIを表示（同期処理）
+  renderMaster();
+  renderPestTable();
+  // GAS設定済みの場合のみクラウドからデータ取得
+  if (CFG.gasUrl) {
+    loadMaster().catch(e => console.log('Master:', e.message));
+    loadPestMaster().catch(e => console.log('Pest:', e.message));
+    loadDashboard().catch(e => console.log('Dashboard:', e.message));
+  } else {
+    loadDashboard(); // GAS未設定なら即座に「未設定」表示
+  }
 }
 init();
 </script>
