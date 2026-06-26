@@ -604,12 +604,20 @@ function toast(msg, dur = 2500) {
 // GAS通信
 // =============================================
 async function gasGet(params) {
-  if (!CFG.gasUrl) throw new Error('GAS URLが設定されていません。設定画面で入力してください。');
+  if (!CFG.gasUrl) throw new Error('GAS URLが設定されていません。');
   const url = CFG.gasUrl + '?' + new URLSearchParams(params);
-  const res = await fetch(url);
-  const json = await res.json();
-  if (!json.ok) throw new Error(json.error || 'GASエラー');
-  return json;
+  const controller = new AbortController();
+  const tid = setTimeout(() => controller.abort(), 8000);
+  try {
+    const res = await fetch(url, {signal: controller.signal});
+    clearTimeout(tid);
+    const json = await res.json();
+    if (!json.ok) throw new Error(json.error || 'GASエラー');
+    return json;
+  } catch(e) {
+    clearTimeout(tid);
+    throw e;
+  }
 }
 async function gasPost(body) {
   if (!CFG.gasUrl) throw new Error('GAS URLが設定されていません。');
@@ -1204,8 +1212,13 @@ async function mergeImport() {
 // =============================================
 async function init() {
   updateConnBadge();
-  await Promise.all([loadMaster(), loadPestMaster()]);
-  await loadDashboard();
+  // GAS未設定時もUIを表示するためtry/catch
+  try {
+    await Promise.all([loadMaster(), loadPestMaster()]);
+  } catch(e) { console.log('Master load skipped:', e.message); }
+  try {
+    await loadDashboard();
+  } catch(e) { console.log('Dashboard load skipped:', e.message); }
 }
 init();
 </script>
