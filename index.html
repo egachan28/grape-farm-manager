@@ -815,6 +815,11 @@ async function loadBojo() {
   }
   showLoading(false);
 }
+function renderBojoFilter() {
+  const vine = document.getElementById('bojo-vine')?.value || '';
+  const filtered = vine ? bojoCache.filter(r => (r['対象品種'] || '') === vine) : bojoCache;
+  renderBojo(filtered);
+}
 function fmtDate(v) {
   if (!v) return '';
   const s = v.toString();
