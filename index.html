@@ -277,13 +277,15 @@ tbody tr.warn-row td{background:var(--a50)}
   <div class="fbar">
     <select id="bojo-year" onchange="loadBojo()"><option value="2025">2025年</option><option value="2024">2024年</option><option value="2023">2023年</option></select>
     <span style="font-size:12px;color:var(--gray400)" id="bojo-count"></span>
+
+    <select id="bojo-vine" onchange="renderBojoFilter()" style="font-size:13px"><option value="">全品種</option><option value="ナガノパープル">ナガノパープル</option><option value="シャインマスカット">シャインマスカット</option><option value="雄宝">雄宝</option><option value="マイハート">マイハート</option></select>
     <div class="sep"></div>
     <button class="btn btn-sm" onclick="printBojo()">🖨️ 印刷/PDF</button>
     <button class="btn btn-sm btn-primary" onclick="openModal('m-bojo')">＋ 記録を追加</button>
   </div>
   <div class="card" style="padding:0;overflow:hidden">
     <div class="tw"><table>
-      <thead><tr><th>日付</th><th>農薬名</th><th>対象病害虫</th><th>希釈倍率</th><th>散布量</th><th>年間回数制限</th><th>収穫前日数</th><th>作業者</th><th>メモ</th><th>出典</th><th></th></tr></thead>
+      <thead><tr><th>対象品種</th><th>日付</th><th>農薬名</th><th>対象病害虫</th><th>希釈倍率</th><th>散布量</th><th>作業者</th><th>出典</th><th></th></tr></thead>
       <tbody id="bojo-body"></tbody>
     </table></div>
     <div id="bojo-empty" style="display:none;text-align:center;padding:40px;color:var(--gray400)">この年の防除記録はありません</div>
@@ -443,6 +445,7 @@ tbody tr.warn-row td{background:var(--a50)}
     <div class="tip">💡 プルダウン選択 または ✍️直接入力 の両方が使えます。農薬名を選ぶと倍率などが自動入力されます。</div>
     <div class="fg fg2">
       <div class="form-group"><label>日付 *</label><input type="date" id="b-date"></div>
+      <div class="form-group"><label>対象品種</label><select id="b-vine-sel" style="width:100%;padding:6px;border:1px solid #d0d0d0;border-radius:6px;font-size:14px"><option value="">圃場全体</option><option value="ナガノパープル">ナガノパープル</option><option value="シャインマスカット">シャインマスカット</option><option value="雄宝">雄宝</option><option value="マイハート">マイハート</option></select></div>
       <div class="form-group"><label>作業者</label><div class="combo-wrap"><select id="b-worker-sel" onchange="comboSel(this,'b-worker-free')"><option value="">-- 選択 --</option></select><div class="combo-free"><input type="text" id="b-worker-free" placeholder="直接入力..."></div></div></div>
     </div>
     <div class="fg" style="margin-top:10px">
@@ -805,35 +808,53 @@ async function loadBojo() {
   try {
     const r = await gasGet({ action: 'getBojo', year: y });
     bojoCache = r.data || [];
-    renderBojo(bojoCache);
+    renderBojoFilter();
   } catch(e) {
     renderBojo([]);
     toast('⚠️ ' + e.message);
   }
   showLoading(false);
 }
+function fmtDate(v) {
+  if (!v) return '';
+  const s = v.toString();
+  // 既にYYYY/MM/DD形式
+  if (/^\d{4}\/\d{2}\/\d{2}$/.test(s)) return s;
+  // YYYY-MM-DD形式
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s.replace(/-/g,'/');
+  // Dateオブジェクトの文字列 "Tue Oct 10 2023 00:00:00 GMT+0900"
+  const d = new Date(s);
+  if (!isNaN(d.getTime())) {
+    return d.getFullYear() + '/' + String(d.getMonth()+1).padStart(2,'0') + '/' + String(d.getDate()).padStart(2,'0');
+  }
+  return s;
+}
 const SL = { new:'<span class="stag snew">新規</span>', '2023':'<span class="stag s23">2023</span>', '2024':'<span class="stag s24">2024</span>' };
 const CC = { 防除:'green',管理作業:'gray','施肥・潅水':'blue','剪定・誘引':'amber',収穫:'red',その他:'gray' };
 const VC = { 圃場全体:'green',ナガノパープル:'purple',シャインマスカット:'green',雄宝:'blue',マイハート:'pink' };
 
 function renderBojo(rows) {
-  const body = document.getElementById('bojo-body');
+  const body  = document.getElementById('bojo-body');
   const empty = document.getElementById('bojo-empty');
   document.getElementById('bojo-count').textContent = rows.length + '件';
-  if (!rows.length) { body.innerHTML = ''; empty.style.display = 'block'; return; }
-  empty.style.display = 'none';
+  empty.style.display = rows.length ? 'none' : '';
+  body.parentElement.style.display = rows.length ? '' : 'none';
   body.innerHTML = rows.map(r => {
     const limit = r['年間使用上限'] ? parseInt(r['年間使用上限']) : null;
-    const usedThis = bojoCache.filter(b => b['農薬名'] === r['農薬名'] && (b['日付']||'').startsWith(new Date().getFullYear())).length;
-    const warn = limit && usedThis >= limit - 1 ? ' class="warn-row"' : '';
+    const usedThis = bojoCache.filter(b => b['農薬名'] === r['農薬名'] && b['日付'] && b['日付'].toString().startsWith(new Date(r['日付']).getFullYear())).length;
+    const warn = limit && usedThis >= limit ? ' style="background:#fff3cd"' : '';
+    const vine = r['対象品種'] || '';
+    const vColor = VC[vine] || 'gray';
+    const vTag = vine ? `<span class="stag s${vColor}">${vine}</span>` : '<span style="color:#aaa">全体</span>';
     return `<tr${warn}>
-      <td>${r['日付']||''}</td>
-      <td><strong>${r['農薬名']||''}</strong> ${SL[r['出典']]||''}</td>
-      <td>${r['対象病害虫']||'—'}</td><td>${r['希釈倍率']||'—'}</td><td>${r['散布量(L)']||'—'}</td>
-      <td>${r['年間使用上限']||'—'}</td><td style="font-size:12px">${r['収穫前日数']||'—'}</td>
+      <td>${vTag}</td>
+      <td>${fmtDate(r['日付'])}</td>
+      <td><strong>${r['農薬名']||''}</strong></td>
+      <td style="font-size:12px">${r['対象病害虫']||'—'}</td>
+      <td>${r['希釈倍率']||'—'}</td>
+      <td>${r['散布量(L)']||'—'}</td>
       <td>${r['作業者']||'—'}</td>
-      <td style="font-size:12px;color:var(--gray500)">${r['メモ']||''}</td>
-      <td>${SL[r['出典']]||''}</td>
+      <td style="font-size:11px;color:#666">${SL[r['出典']]||r['出典']||''}</td>
       <td><button class="btn btn-sm btn-ghost" onclick="confirmDelete('bojo',${r['_rowIndex']},'${r['農薬名']}')">🗑️</button></td>
     </tr>`;
   }).join('');
@@ -853,6 +874,7 @@ async function submitBojo() {
       pre: document.getElementById('b-pre').value,
       worker: getCV('b-worker-sel','b-worker-free'),
       note: getCV('b-memo-sel','b-memo-free'),
+      vine: document.getElementById('b-vine-sel')?.value || '',
       source: 'new',
     }});
     closeModal('m-bojo');
