@@ -214,7 +214,7 @@ tbody tr.warn-row td{background:var(--a50)}
   <header class="topbar">
     <div>
       <div class="topbar-title" id="page-title">ダッシュボード</div>
-      <div class="topbar-sub" id="page-sub">2025年 / 9本・4品種</div>
+      <div class="topbar-sub" id="page-sub">2026年 / 10本・4品種</div>
     </div>
     <div class="tr">
       <span id="conn-badge" class="conn-status conn-wait">⚙️ 未接続</span>
@@ -228,7 +228,7 @@ tbody tr.warn-row td{background:var(--a50)}
 <div class="page active" id="page-dashboard">
   <div class="stat-grid">
     <div class="stat-card c-green"><div class="stat-label">管理品種</div><div class="stat-val">4<span class="stat-unit">品種</span></div><div class="stat-sub">ナガノP・シャイン・雄宝・マイハート</div></div>
-    <div class="stat-card c-purple"><div class="stat-label">管理本数</div><div class="stat-val">9<span class="stat-unit">本</span></div><div class="stat-sub">2023〜2025年植え付け</div></div>
+    <div class="stat-card c-purple"><div class="stat-label">管理本数</div><div class="stat-val">10<span class="stat-unit">本</span></div><div class="stat-sub">2023〜2025年植え付け</div></div>
     <div class="stat-card c-amber"><div class="stat-label" id="dash-bojo-label">今年の防除回数</div><div class="stat-val" id="dash-bojo-count">—<span class="stat-unit">回</span></div><div class="stat-sub" id="dash-bojo-sub">読み込み中...</div></div>
     <div class="stat-card c-red"><div class="stat-label">使用回数アラート</div><div class="stat-val" id="dash-alert-count">—<span class="stat-unit">件</span></div><div class="stat-sub" id="dash-alert-sub">読み込み中...</div></div>
   </div>
@@ -275,7 +275,7 @@ tbody tr.warn-row td{background:var(--a50)}
 <!-- 防除暦 -->
 <div class="page" id="page-bojo">
   <div class="fbar">
-    <select id="bojo-year" onchange="loadBojo()"><option value="2025">2025年</option><option value="2024">2024年</option><option value="2023">2023年</option></select>
+    <select id="bojo-year" onchange="loadBojo()"><option value="2026">2026年</option><option value="2025">2025年</option><option value="2024">2024年</option><option value="2023">2023年</option></select>
     <span style="font-size:12px;color:var(--gray400)" id="bojo-count"></span>
 
     <select id="bojo-vine" onchange="renderBojoFilter()" style="font-size:13px"><option value="">全品種</option><option value="ナガノパープル">ナガノパープル</option><option value="シャインマスカット">シャインマスカット</option><option value="雄宝">雄宝</option><option value="マイハート">マイハート</option></select>
@@ -565,11 +565,11 @@ function updateConnBadge() {
 // ナビゲーション
 // =============================================
 const pgLbl = {
-  dashboard: ['ダッシュボード','2025年 / 9本・4品種'],
+  dashboard: ['ダッシュボード','2026年 / 10本・4品種'],
   master:    ['マスタ管理','作業者・農薬・作業名の登録'],
   bojo:      ['防除暦','圃場全体 / 年別管理（印刷対応）'],
   history:   ['作業履歴','全作業記録'],
-  varieties: ['品種管理','4品種 / 9本'],
+  varieties: ['品種管理','4品種 / 10本'],
   pesticides:['農薬マスタ','登録農薬・使用回数管理'],
   ai:        ['AI防除提案','Claudeによるリアルタイム分析'],
   import:    ['過去データ取込','既存スプレッドシートを統合'],
@@ -1139,7 +1139,7 @@ async function generateAIPlan() {
   const concern = document.getElementById('ai-concern').value;
   const bojoSummary = bojoCache.map(b => `${b['日付']} ${b['農薬名']} ${b['希釈倍率']} (${b['対象病害虫']||'—'})`).join('\n');
   const prompt = `丹波篠山市のブドウ圃場（8ポット栽培）の${yr}年の防除プランを提案してください。
-品種：ナガノパープル・シャインマスカット・雄宝・マイハート（計9本）
+品種：ナガノパープル・シャインマスカット・雄宝・マイハート（計10本）
 主な懸念：${concern === 'all' ? '全般（べと病・灰色かび病・ウドンコ病・害虫）' : concern}
 過去の防除記録（直近）：\n${bojoSummary || '記録なし'}
 農薬マスタ：${pestMaster.map(p=>p['農薬名']+'('+p['年間上限']+'制限)').join('、')}
