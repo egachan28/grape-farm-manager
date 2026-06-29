@@ -295,7 +295,7 @@ tbody tr.warn-row td{background:var(--a50)}
 <!-- 作業履歴 -->
 <div class="page" id="page-history">
   <div class="fbar">
-    <select id="hist-year" onchange="loadHistory()"><option value="">全年</option><option value="2025" selected>2025年</option><option value="2024">2024年</option><option value="2023">2023年</option></select>
+    <select id="hist-year" onchange="loadHistory()"><option value="" selected>全年</option><option value="2026">2026年</option><option value="2025">2025年</option><option value="2024">2024年</option><option value="2023">2023年</option></select>
     <select id="hist-cat" onchange="loadHistory()"><option value="">全カテゴリ</option><option>防除</option><option>管理作業</option><option>施肥・潅水</option><option>剪定・誘引</option><option>収穫</option><option>その他</option></select>
     <select id="hist-variety" onchange="loadHistory()"><option value="">全品種</option><option>ナガノパープル</option><option>シャインマスカット</option><option>雄宝</option><option>マイハート</option><option>圃場全体</option></select>
     <input type="text" id="hist-search" placeholder="🔍 キーワード..." style="width:140px" oninput="loadHistory()">
@@ -639,6 +639,20 @@ async function gasPost(body) {
     throw e;
   }
 }
+// 日付ユーティリティ: シートのDate型("Tue Sep 05 2023 00:00:00 GMT+0900 ...")も "2023/09/05" も扱う
+function parseGDate(v) {
+  if (!v) return null;
+  if (v instanceof Date) return isNaN(v) ? null : v;
+  const d = new Date(String(v).trim());
+  return isNaN(d) ? null : d;
+}
+function gYear(v) { const d = parseGDate(v); return d ? String(d.getFullYear()) : ''; }
+function fmtDate(v) {
+  const d = parseGDate(v);
+  if (!d) return '';
+  const p = n => String(n).padStart(2, '0');
+  return d.getFullYear() + '/' + p(d.getMonth() + 1) + '/' + p(d.getDate());
+}
 async function testGAS() {
   const el = document.getElementById('gas-status');
   el.className = 'conn-status conn-wait'; el.textContent = 'テスト中...';
@@ -896,15 +910,19 @@ async function loadHistory() {
   if (!CFG.gasUrl) { renderHistory([]); return; }
   showLoading(true);
   try {
-    const params = {
-      action: 'getHistory',
-      year:    document.getElementById('hist-year').value,
-      cat:     document.getElementById('hist-cat').value,
-      variety: document.getElementById('hist-variety').value,
-      q:       document.getElementById('hist-search').value,
-    };
-    const r = await gasGet(params);
-    renderHistory(r.data || []);
+    // GAS側のgetHistory年フィルタがDate型に非対応で常に0件になるため、全件取得してクライアントで絞る
+    const r = await gasGet({ action: 'getHistory' });
+    let rows = (r.data || []).filter(x => parseGDate(x['日付'])); // 日付が読めない行(ヘッダ/ゴミ)を除外
+    const y = document.getElementById('hist-year').value;
+    const cat = document.getElementById('hist-cat').value;
+    const variety = document.getElementById('hist-variety').value;
+    const q = (document.getElementById('hist-search').value || '').toLowerCase();
+    if (y) rows = rows.filter(x => gYear(x['日付']) === y);
+    if (cat) rows = rows.filter(x => x['カテゴリ'] === cat);
+    if (variety) rows = rows.filter(x => x['対象品種'] === variety);
+    if (q) rows = rows.filter(x => JSON.stringify(x).toLowerCase().includes(q));
+    rows.sort((a, b) => parseGDate(b['日付']) - parseGDate(a['日付'])); // 新しい順
+    renderHistory(rows);
   } catch(e) {
     renderHistory([]);
     toast('⚠️ ' + e.message);
@@ -917,7 +935,7 @@ function renderHistory(rows) {
   if (!rows.length) { body.innerHTML = ''; empty.style.display = 'block'; return; }
   empty.style.display = 'none';
   body.innerHTML = rows.map(r => `<tr>
-    <td>${r['日付']||''}</td>
+    <td>${fmtDate(r['日付'])}</td>
     <td><span class="badge bg-${CC[r['カテゴリ']]||'gray'}">${r['カテゴリ']||''}</span></td>
     <td><strong>${r['作業内容']||''}</strong></td>
     <td><span class="badge bg-${VC[r['対象品種']]||'gray'}">${r['対象品種']||''}</span></td>
@@ -1047,11 +1065,14 @@ async function loadDashboard() {
     return;
   }
   try {
-    // 最近の作業
+    // 最近の作業（新しい順・ゴミ行除外・日付整形）
     const hr = await gasGet({ action: 'getHistory' });
-    const hist = (hr.data || []).slice(0, 6);
+    const hist = (hr.data || [])
+      .filter(r => parseGDate(r['日付']))
+      .sort((a, b) => parseGDate(b['日付']) - parseGDate(a['日付']))
+      .slice(0, 6);
     document.getElementById('dash-recent').innerHTML = hist.map(r => `<tr>
-      <td>${r['日付']||''}</td><td><strong>${r['作業内容']||''}</strong></td>
+      <td>${fmtDate(r['日付'])}</td><td><strong>${r['作業内容']||''}</strong></td>
       <td><span class="badge bg-${CC[r['カテゴリ']]||'gray'}">${r['カテゴリ']||''}</span></td>
       <td>${r['作業者']||'—'}</td><td style="font-size:12px;color:var(--gray500)">${r['メモ']||''}</td>
     </tr>`).join('') || '<tr><td colspan="5" style="color:var(--gray400);text-align:center">記録がありません</td></tr>';
