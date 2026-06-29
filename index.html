@@ -647,12 +647,7 @@ function parseGDate(v) {
   return isNaN(d) ? null : d;
 }
 function gYear(v) { const d = parseGDate(v); return d ? String(d.getFullYear()) : ''; }
-function fmtDate(v) {
-  const d = parseGDate(v);
-  if (!d) return '';
-  const p = n => String(n).padStart(2, '0');
-  return d.getFullYear() + '/' + p(d.getMonth() + 1) + '/' + p(d.getDate());
-}
+// 日付表示の整形は既存の fmtDate() を使用
 async function testGAS() {
   const el = document.getElementById('gas-status');
   el.className = 'conn-status conn-wait'; el.textContent = 'テスト中...';
