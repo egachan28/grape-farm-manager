@@ -279,6 +279,7 @@ tbody tr.warn-row td{background:var(--a50)}
     <span style="font-size:12px;color:var(--gray400)" id="bojo-count"></span>
 
     <select id="bojo-vine" onchange="renderBojoFilter()" style="font-size:13px"><option value="">全品種</option><option value="ナガノパープル">ナガノパープル</option><option value="シャインマスカット">シャインマスカット</option><option value="雄宝">雄宝</option><option value="マイハート">マイハート</option></select>
+    <button class="btn btn-sm" id="bojo-sort-btn" onclick="toggleBojoSort()" title="日付の並び順を切り替え">📅 古い順 ↑</button>
     <div class="sep"></div>
     <button class="btn btn-sm" onclick="printBojo()">🖨️ 印刷/PDF</button>
     <button class="btn btn-sm btn-primary" onclick="openModal('m-bojo')">＋ 記録を追加</button>
@@ -299,6 +300,7 @@ tbody tr.warn-row td{background:var(--a50)}
     <select id="hist-cat" onchange="loadHistory()"><option value="">全カテゴリ</option><option>防除</option><option>管理作業</option><option>施肥・潅水</option><option>剪定・誘引</option><option>収穫</option><option>その他</option></select>
     <select id="hist-variety" onchange="loadHistory()"><option value="">全品種</option><option>ナガノパープル</option><option>シャインマスカット</option><option>雄宝</option><option>マイハート</option><option>圃場全体</option></select>
     <input type="text" id="hist-search" placeholder="🔍 キーワード..." style="width:140px" oninput="loadHistory()">
+    <button class="btn btn-sm" id="hist-sort-btn" onclick="toggleHistSort()" title="日付の並び順を切り替え">📅 古い順 ↑</button>
     <div class="sep"></div>
     <button class="btn btn-sm btn-primary" onclick="openModal('m-hist')">＋ 作業を追加</button>
   </div>
@@ -680,6 +682,8 @@ let M = {
 };
 let pestMaster = []; // 農薬マスタ
 let bojoCache  = []; // 防除暦キャッシュ
+let bojoAsc = true;  // 防除暦の並び順(true=古い順/時系列)
+let histAsc = true;  // 作業履歴の並び順(true=古い順/時系列)
 
 async function loadMaster() {
   if (!CFG.gasUrl) { renderMaster(); return; }
@@ -826,8 +830,15 @@ async function loadBojo() {
 }
 function renderBojoFilter() {
   const vine = document.getElementById('bojo-vine')?.value || '';
-  const filtered = vine ? bojoCache.filter(r => (r['対象品種'] || '') === vine) : bojoCache;
+  const filtered = (vine ? bojoCache.filter(r => (r['対象品種'] || '') === vine) : bojoCache).slice();
+  const ts = v => { const d = parseGDate(v); return d ? d.getTime() : 0; };
+  filtered.sort((a, b) => bojoAsc ? ts(a['日付']) - ts(b['日付']) : ts(b['日付']) - ts(a['日付']));
   renderBojo(filtered);
+}
+function toggleBojoSort() {
+  bojoAsc = !bojoAsc;
+  document.getElementById('bojo-sort-btn').textContent = bojoAsc ? '📅 古い順 ↑' : '📅 新しい順 ↓';
+  renderBojoFilter();
 }
 function fmtDate(v) {
   if (!v) return '';
@@ -916,13 +927,18 @@ async function loadHistory() {
     if (cat) rows = rows.filter(x => x['カテゴリ'] === cat);
     if (variety) rows = rows.filter(x => x['対象品種'] === variety);
     if (q) rows = rows.filter(x => JSON.stringify(x).toLowerCase().includes(q));
-    rows.sort((a, b) => parseGDate(b['日付']) - parseGDate(a['日付'])); // 新しい順
+    rows.sort((a, b) => histAsc ? parseGDate(a['日付']) - parseGDate(b['日付']) : parseGDate(b['日付']) - parseGDate(a['日付']));
     renderHistory(rows);
   } catch(e) {
     renderHistory([]);
     toast('⚠️ ' + e.message);
   }
   showLoading(false);
+}
+function toggleHistSort() {
+  histAsc = !histAsc;
+  document.getElementById('hist-sort-btn').textContent = histAsc ? '📅 古い順 ↑' : '📅 新しい順 ↓';
+  loadHistory();
 }
 function renderHistory(rows) {
   const body = document.getElementById('hist-body');
