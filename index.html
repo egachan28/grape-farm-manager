@@ -334,7 +334,7 @@ tbody tr.warn-row td{background:var(--a50)}
   <div class="fbar">
     <input type="text" id="pest-search" placeholder="🔍 農薬名を検索..." style="width:200px" oninput="renderPestTable()">
     <div class="sep"></div>
-    <button class="btn btn-sm btn-primary" onclick="openModal('m-pest')">＋ 農薬を登録</button>
+    <button class="btn btn-sm btn-primary" onclick="openPestAdd()">＋ 農薬を登録</button>
   </div>
   <div class="card" style="padding:0;overflow:hidden">
     <div class="tw"><table>
@@ -456,7 +456,7 @@ tbody tr.warn-row td{background:var(--a50)}
 <!-- MODAL: 農薬登録 -->
 <div class="mo" id="m-pest">
   <div class="modal">
-    <div class="modal-header"><div class="modal-title">📦 農薬を登録</div><button class="btn btn-sm btn-ghost" onclick="closeModal('m-pest')">✕</button></div>
+    <div class="modal-header"><div class="modal-title" id="m-pest-title">📦 農薬を登録</div><button class="btn btn-sm btn-ghost" onclick="closeModal('m-pest')">✕</button></div>
     <div class="fg fg2">
       <div class="form-group"><label>農薬名 *</label><input type="text" id="p-name" placeholder="フルピカ フロアブル"></div>
       <div class="form-group"><label>登録番号</label><input type="text" id="p-reg" placeholder="第21199号"></div>
@@ -640,6 +640,7 @@ let bojoCache  = []; // 防除暦キャッシュ
 let histCache  = []; // 作業履歴キャッシュ(全件・編集用)
 let editBojoRow = null; // 編集中の防除暦の_rowIndex(null=新規追加)
 let editHistRow = null; // 編集中の作業履歴の_rowIndex(null=新規追加)
+let editPestRow = null; // 編集中の農薬マスタの_rowIndex(null=新規追加)
 let bojoAsc = true;  // 防除暦の並び順(true=古い順/時系列)
 let histAsc = true;  // 作業履歴の並び順(true=古い順/時系列)
 
@@ -1053,17 +1054,39 @@ function loadPestTable() {
         <td style="font-size:12px">${p['収穫前日数']||''}</td>
         <td style="${warnC}">${usedCount}回${limit?' / '+limit+'回':''}</td>
         <td style="font-size:12px;color:var(--gray500)">${p['メモ']||''}</td>
-        <td><button class="btn btn-sm btn-ghost" onclick="confirmDelete('pest',${p['_rowIndex']||0},'${p['農薬名']}')">🗑️</button></td>
+        <td style="white-space:nowrap"><button class="btn btn-sm btn-ghost" onclick="editPest(${p['_rowIndex']||0})">✏️</button><button class="btn btn-sm btn-ghost" onclick="confirmDelete('pest',${p['_rowIndex']||0},'${(p['農薬名']||'').replace(/'/g,'')}')">🗑️</button></td>
       </tr>`;
     }).join('');
   });
+}
+function openPestAdd() {
+  editPestRow = null;
+  document.getElementById('m-pest-title').textContent = '📦 農薬を登録';
+  ['p-name','p-reg','p-target','p-dil','p-max','p-pre','p-memo'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('p-type').value = '殺菌剤';
+  openModal('m-pest');
+}
+function editPest(ri) {
+  const p = pestMaster.find(x => x['_rowIndex'] === ri); if (!p) { toast('⚠️ 対象行が見つかりません'); return; }
+  editPestRow = ri;
+  document.getElementById('m-pest-title').textContent = '📦 農薬を編集';
+  document.getElementById('p-name').value   = p['農薬名'] || '';
+  document.getElementById('p-reg').value    = p['登録番号'] || '';
+  const typeSel = document.getElementById('p-type');
+  typeSel.value = (p['種別'] && Array.from(typeSel.options).some(o => o.value === p['種別'])) ? p['種別'] : 'その他';
+  document.getElementById('p-target').value = p['対象病害虫'] || '';
+  document.getElementById('p-dil').value    = p['希釈倍率'] || '';
+  document.getElementById('p-max').value    = p['年間上限'] || '';
+  document.getElementById('p-pre').value    = p['収穫前日数'] || '';
+  document.getElementById('p-memo').value   = p['メモ'] || '';
+  openModal('m-pest');
 }
 async function submitPest() {
   const name = document.getElementById('p-name').value.trim();
   if (!name) { alert('農薬名は必須です'); return; }
   showLoading(true);
   try {
-    await gasPost({ action: 'addPest', row: {
+    const row = {
       '農薬名': name, '登録番号': document.getElementById('p-reg').value,
       '種別': document.getElementById('p-type').value,
       '対象病害虫': document.getElementById('p-target').value,
@@ -1071,12 +1094,20 @@ async function submitPest() {
       '年間上限': document.getElementById('p-max').value,
       '収穫前日数': document.getElementById('p-pre').value,
       'メモ': document.getElementById('p-memo').value,
-    }});
+    };
+    if (editPestRow != null) {
+      row['_rowIndex'] = editPestRow;
+      await gasPost({ action: 'updatePest', row });
+      toast('✅ 農薬を更新しました');
+    } else {
+      await gasPost({ action: 'addPest', row });
+      toast('✅ 農薬を登録しました');
+    }
+    editPestRow = null;
     closeModal('m-pest');
-    toast('✅ 農薬を登録しました');
     await loadPestMaster();
     loadPestTable();
-  } catch(e) { alert('登録エラー: ' + e.message); }
+  } catch(e) { alert('保存エラー: ' + e.message); }
   showLoading(false);
 }
 
