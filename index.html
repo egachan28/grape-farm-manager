@@ -219,7 +219,7 @@ tbody tr.warn-row td{background:var(--a50)}
     <div class="tr">
       <span id="conn-badge" class="conn-status conn-wait">⚙️ 未接続</span>
       <button class="btn btn-sm" onclick="printBojo()">🖨️ 防除暦を印刷</button>
-      <button class="btn btn-sm btn-primary" onclick="openModal('m-bojo')">＋ 防除記録を追加</button>
+      <button class="btn btn-sm btn-primary" onclick="openBojoAdd()">＋ 防除記録を追加</button>
     </div>
   </header>
   <main class="content">
@@ -282,7 +282,7 @@ tbody tr.warn-row td{background:var(--a50)}
     <button class="btn btn-sm" id="bojo-sort-btn" onclick="toggleBojoSort()" title="日付の並び順を切り替え">📅 古い順 ↑</button>
     <div class="sep"></div>
     <button class="btn btn-sm" onclick="printBojo()">🖨️ 印刷/PDF</button>
-    <button class="btn btn-sm btn-primary" onclick="openModal('m-bojo')">＋ 記録を追加</button>
+    <button class="btn btn-sm btn-primary" onclick="openBojoAdd()">＋ 記録を追加</button>
   </div>
   <div class="card" style="padding:0;overflow:hidden">
     <div class="tw"><table>
@@ -302,7 +302,7 @@ tbody tr.warn-row td{background:var(--a50)}
     <input type="text" id="hist-search" placeholder="🔍 キーワード..." style="width:140px" oninput="loadHistory()">
     <button class="btn btn-sm" id="hist-sort-btn" onclick="toggleHistSort()" title="日付の並び順を切り替え">📅 古い順 ↑</button>
     <div class="sep"></div>
-    <button class="btn btn-sm btn-primary" onclick="openModal('m-hist')">＋ 作業を追加</button>
+    <button class="btn btn-sm btn-primary" onclick="openHistAdd()">＋ 作業を追加</button>
   </div>
   <div class="card" style="padding:0;overflow:hidden">
     <div class="tw"><table>
@@ -443,7 +443,7 @@ tbody tr.warn-row td{background:var(--a50)}
 <!-- MODAL: 防除記録追加 -->
 <div class="mo" id="m-bojo">
   <div class="modal">
-    <div class="modal-header"><div class="modal-title">🧴 防除記録を追加</div><button class="btn btn-sm btn-ghost" onclick="closeModal('m-bojo')">✕</button></div>
+    <div class="modal-header"><div class="modal-title" id="m-bojo-title">🧴 防除記録を追加</div><button class="btn btn-sm btn-ghost" onclick="closeModal('m-bojo')">✕</button></div>
     <div class="tip">💡 プルダウン選択 または ✍️直接入力 の両方が使えます。農薬名を選ぶと倍率などが自動入力されます。</div>
     <div class="fg fg2">
       <div class="form-group"><label>日付 *</label><input type="date" id="b-date"></div>
@@ -475,7 +475,7 @@ tbody tr.warn-row td{background:var(--a50)}
 <!-- MODAL: 作業履歴追加 -->
 <div class="mo" id="m-hist">
   <div class="modal">
-    <div class="modal-header"><div class="modal-title">📋 作業を追加</div><button class="btn btn-sm btn-ghost" onclick="closeModal('m-hist')">✕</button></div>
+    <div class="modal-header"><div class="modal-title" id="m-hist-title">📋 作業を追加</div><button class="btn btn-sm btn-ghost" onclick="closeModal('m-hist')">✕</button></div>
     <div class="tip">💡 プルダウン選択 または ✍️直接入力 の両方が使えます</div>
     <div class="fg fg2">
       <div class="form-group"><label>日付 *</label><input type="date" id="h-date"></div>
@@ -682,6 +682,9 @@ let M = {
 };
 let pestMaster = []; // 農薬マスタ
 let bojoCache  = []; // 防除暦キャッシュ
+let histCache  = []; // 作業履歴キャッシュ(全件・編集用)
+let editBojoRow = null; // 編集中の防除暦の_rowIndex(null=新規追加)
+let editHistRow = null; // 編集中の作業履歴の_rowIndex(null=新規追加)
 let bojoAsc = true;  // 防除暦の並び順(true=古い順/時系列)
 let histAsc = true;  // 作業履歴の並び順(true=古い順/時系列)
 
@@ -811,6 +814,72 @@ function autofillTask() {
   }
 }
 
+// --- 編集共通ヘルパ ---
+// 値をコンボ(select+自由入力)に反映。選択肢にあればselect、無ければ自由入力欄へ
+function setCombo(selId, freeId, val) {
+  val = val || '';
+  const sel = document.getElementById(selId);
+  const fEl = document.getElementById(freeId);
+  const wrap = fEl.closest('.combo-free');
+  const opt = val ? Array.from(sel.options).find(o => o.value === val || o.value.split('|||')[0] === val) : null;
+  if (val && opt) { sel.value = opt.value; wrap.style.display = 'none'; fEl.value = ''; }
+  else if (val)   { sel.value = ''; wrap.style.display = 'block'; fEl.value = val; }
+  else            { sel.value = ''; wrap.style.display = 'none'; fEl.value = ''; }
+}
+// GASの日付(Date文字列 or YYYY/MM/DD)を input[type=date] 用の YYYY-MM-DD に変換
+function toDateInput(v) {
+  const d = parseGDate(v); if (!d) return '';
+  const p = n => String(n).padStart(2, '0');
+  return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+}
+function openBojoAdd() {
+  editBojoRow = null;
+  openModal('m-bojo'); // refreshSelects + 表示
+  document.getElementById('m-bojo-title').textContent = '🧴 防除記録を追加';
+  ['b-date','b-max','b-pre'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('b-vine-sel').value = '';
+  ['name','target','dil','vol','worker','memo'].forEach(k => setCombo('b-'+k+'-sel','b-'+k+'-free',''));
+}
+function openHistAdd() {
+  editHistRow = null;
+  openModal('m-hist');
+  document.getElementById('m-hist-title').textContent = '📋 作業を追加';
+  document.getElementById('h-date').value = '';
+  document.getElementById('h-cat').value = '管理作業';
+  document.getElementById('h-variety').value = '圃場全体';
+  ['title','worker','memo'].forEach(k => setCombo('h-'+k+'-sel','h-'+k+'-free',''));
+}
+function editBojo(ri) {
+  const r = bojoCache.find(x => x['_rowIndex'] === ri); if (!r) { toast('⚠️ 対象行が見つかりません'); return; }
+  openModal('m-bojo'); // 先にrefreshSelectsで選択肢を用意
+  editBojoRow = ri;
+  document.getElementById('m-bojo-title').textContent = '🧴 防除記録を編集';
+  document.getElementById('b-date').value = toDateInput(r['日付']);
+  document.getElementById('b-vine-sel').value = r['対象品種'] || '';
+  setCombo('b-name-sel','b-name-free', r['農薬名']);
+  setCombo('b-target-sel','b-target-free', r['対象病害虫']);
+  setCombo('b-dil-sel','b-dil-free', r['希釈倍率']);
+  setCombo('b-vol-sel','b-vol-free', r['散布量(L)']);
+  setCombo('b-worker-sel','b-worker-free', r['作業者']);
+  setCombo('b-memo-sel','b-memo-free', r['メモ']);
+  document.getElementById('b-max').value = r['年間使用上限'] || '';
+  document.getElementById('b-pre').value = r['収穫前日数'] || '';
+}
+function editHistory(ri) {
+  const r = histCache.find(x => x['_rowIndex'] === ri); if (!r) { toast('⚠️ 対象行が見つかりません'); return; }
+  openModal('m-hist');
+  editHistRow = ri;
+  document.getElementById('m-hist-title').textContent = '📋 作業を編集';
+  document.getElementById('h-date').value = toDateInput(r['日付']);
+  const catSel = document.getElementById('h-cat');
+  if (r['カテゴリ'] && Array.from(catSel.options).some(o => o.value === r['カテゴリ'])) catSel.value = r['カテゴリ'];
+  const vSel = document.getElementById('h-variety');
+  vSel.value = (r['対象品種'] && Array.from(vSel.options).some(o => o.value === r['対象品種'])) ? r['対象品種'] : '圃場全体';
+  setCombo('h-title-sel','h-title-free', r['作業内容']);
+  setCombo('h-worker-sel','h-worker-free', r['作業者']);
+  setCombo('h-memo-sel','h-memo-free', r['メモ']);
+}
+
 // =============================================
 // 防除暦
 // =============================================
@@ -880,7 +949,7 @@ function renderBojo(rows) {
       <td>${r['散布量(L)']||'—'}</td>
       <td>${r['作業者']||'—'}</td>
       <td style="font-size:11px;color:#666">${SL[r['出典']]||r['出典']||''}</td>
-      <td><button class="btn btn-sm btn-ghost" onclick="confirmDelete('bojo',${r['_rowIndex']},'${r['農薬名']}')">🗑️</button></td>
+      <td style="white-space:nowrap"><button class="btn btn-sm btn-ghost" onclick="editBojo(${r['_rowIndex']})">✏️</button><button class="btn btn-sm btn-ghost" onclick="confirmDelete('bojo',${r['_rowIndex']},'${(r['農薬名']||'').replace(/'/g,'')}')">🗑️</button></td>
     </tr>`;
   }).join('');
 }
@@ -890,7 +959,7 @@ async function submitBojo() {
   if (!d || !n) { alert('日付と農薬名は必須です'); return; }
   showLoading(true);
   try {
-    await gasPost({ action: 'addBojo', row: {
+    const row = {
       date: d.replace(/-/g,'/'), name: n,
       reg: '', target: getCV('b-target-sel','b-target-free'),
       dil: getCV('b-dil-sel','b-dil-free'),
@@ -900,10 +969,21 @@ async function submitBojo() {
       worker: getCV('b-worker-sel','b-worker-free'),
       note: getCV('b-memo-sel','b-memo-free'),
       vine: document.getElementById('b-vine-sel')?.value || '',
-      source: 'new',
-    }});
+    };
+    if (editBojoRow != null) {
+      const orig = bojoCache.find(x => x['_rowIndex'] === editBojoRow) || {};
+      row._rowIndex = editBojoRow;
+      row.reg = orig['登録番号'] || '';       // UIに無い列は元値を保持
+      row.source = orig['出典'] || '';         // 出典は編集で変えない
+      await gasPost({ action: 'updateBojo', row });
+      toast('✅ 防除記録を更新しました');
+    } else {
+      row.source = 'new';
+      await gasPost({ action: 'addBojo', row });
+      toast('✅ 防除記録を保存しました');
+    }
+    editBojoRow = null;
     closeModal('m-bojo');
-    toast('✅ 防除記録を保存しました');
     await loadBojo();
   } catch(e) { alert('保存エラー: ' + e.message); }
   showLoading(false);
@@ -918,6 +998,7 @@ async function loadHistory() {
   try {
     // GAS側のgetHistory年フィルタがDate型に非対応で常に0件になるため、全件取得してクライアントで絞る
     const r = await gasGet({ action: 'getHistory' });
+    histCache = r.data || []; // 編集用に全件保持
     let rows = (r.data || []).filter(x => parseGDate(x['日付'])); // 日付が読めない行(ヘッダ/ゴミ)を除外
     const y = document.getElementById('hist-year').value;
     const cat = document.getElementById('hist-cat').value;
@@ -953,7 +1034,7 @@ function renderHistory(rows) {
     <td>${r['作業者']||'—'}</td>
     <td style="font-size:12px;color:var(--gray600)">${r['メモ']||''}</td>
     <td>${SL[r['出典']]||''}</td>
-    <td><button class="btn btn-sm btn-ghost" onclick="confirmDelete('history',${r['_rowIndex']},'${r['作業内容']}')">🗑️</button></td>
+    <td style="white-space:nowrap"><button class="btn btn-sm btn-ghost" onclick="editHistory(${r['_rowIndex']})">✏️</button><button class="btn btn-sm btn-ghost" onclick="confirmDelete('history',${r['_rowIndex']},'${(r['作業内容']||'').replace(/'/g,'')}')">🗑️</button></td>
   </tr>`).join('');
 }
 async function submitHistory() {
@@ -962,17 +1043,27 @@ async function submitHistory() {
   if (!d || !t) { alert('日付と作業内容は必須です'); return; }
   showLoading(true);
   try {
-    await gasPost({ action: 'addHistory', row: {
+    const row = {
       date: d.replace(/-/g,'/'),
       cat: document.getElementById('h-cat').value,
       title: t,
       variety: document.getElementById('h-variety').value,
       worker: getCV('h-worker-sel','h-worker-free'),
       memo: getCV('h-memo-sel','h-memo-free'),
-      source: 'new',
-    }});
+    };
+    if (editHistRow != null) {
+      const orig = histCache.find(x => x['_rowIndex'] === editHistRow) || {};
+      row._rowIndex = editHistRow;
+      row.source = orig['出典'] || '';
+      await gasPost({ action: 'updateHistory', row });
+      toast('✅ 作業履歴を更新しました');
+    } else {
+      row.source = 'new';
+      await gasPost({ action: 'addHistory', row });
+      toast('✅ 作業履歴を保存しました');
+    }
+    editHistRow = null;
     closeModal('m-hist');
-    toast('✅ 作業履歴を保存しました');
     await loadHistory();
   } catch(e) { alert('保存エラー: ' + e.message); }
   showLoading(false);
