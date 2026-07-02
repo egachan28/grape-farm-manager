@@ -202,7 +202,6 @@ tbody tr.warn-row td{background:var(--a50)}
     <button class="ni" onclick="showPage('history',this)"><span class="ic">📋</span><span>作業履歴</span></button>
     <button class="ni" onclick="showPage('varieties',this)"><span class="ic">🌿</span><span>品種管理</span></button>
     <button class="ni" onclick="showPage('pesticides',this)"><span class="ic">📦</span><span>農薬マスタ</span></button>
-    <button class="ni" onclick="showPage('ai',this)"><span class="ic">✨</span><span>AI防除提案</span></button>
     <div class="nsl" style="margin-top:8px">データ</div>
     <button class="ni" onclick="showPage('import',this)"><span class="ic">📥</span><span>過去データ取込</span></button>
     <button class="ni" onclick="showPage('settings',this)"><span class="ic">🔧</span><span>設定</span></button>
@@ -250,10 +249,6 @@ tbody tr.warn-row td{background:var(--a50)}
       <div class="card">
         <div class="card-title">⚠️ アラート</div>
         <div id="dash-alerts"><div style="color:var(--gray400);font-size:13px">読み込み中...</div></div>
-      </div>
-      <div class="card">
-        <div class="card-title">📅 今後の作業予定（AI提案）</div>
-        <div id="dash-ai-preview" style="font-size:13px;color:var(--gray500)">AI防除提案タブで生成してください</div>
       </div>
     </div>
   </div>
@@ -351,36 +346,6 @@ tbody tr.warn-row td{background:var(--a50)}
 </div>
 
 <!-- AI防除提案 -->
-<div class="page" id="page-ai">
-  <div class="ai-hdr"><h2 style="font-size:18px;margin-bottom:6px">✨ AI防除プランアシスタント</h2><p style="font-size:13px;opacity:.85">過去の防除履歴・品種情報・地域の推奨暦をもとにClaudeがリアルタイムでアドバイスします。</p></div>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
-    <div>
-      <div class="card">
-        <div class="card-title">📌 過去データをもとに自動提案を生成</div>
-        <div class="tip">防除記録・作業履歴をClaudeが分析して今後のプランを提案します</div>
-        <div class="fg fg2" style="margin-bottom:12px">
-          <div class="form-group"><label>対象年</label><select id="ai-year"><option value="2025">2025年</option><option value="2026" selected>2026年</option></select></div>
-          <div class="form-group"><label>主な懸念</label><select id="ai-concern"><option value="all">すべて</option><option value="beto">べと病</option><option value="hai">灰色かび病</option><option value="udon">ウドンコ病</option><option value="insect">害虫全般</option></select></div>
-        </div>
-        <button class="btn btn-primary" onclick="generateAIPlan()" id="ai-gen-btn">✨ AIに防除プランを提案させる</button>
-        <div id="ai-plan-result" style="margin-top:16px"></div>
-      </div>
-    </div>
-    <div>
-      <div class="card" style="padding:0;overflow:hidden;display:flex;flex-direction:column">
-        <div style="padding:14px 16px;border-bottom:1px solid var(--gray100)"><div class="card-title" style="margin-bottom:0">💬 AIに自由に相談する</div></div>
-        <div class="ai-msgs" id="ai-messages">
-          <div class="msg msg-ai"><div class="msg-sender">Claude</div><div class="bubble">こんにちは！ブドウの防除・栽培について何でも相談してください。過去の防除暦や品種情報も参考にしながらお答えします。</div></div>
-        </div>
-        <div class="ai-ibar">
-          <input type="text" id="ai-input" placeholder="例：梅雨時期の灰色かび病対策は？" onkeydown="if(event.key==='Enter')sendAI()">
-          <button class="btn btn-sm btn-primary" onclick="sendAI()" id="ai-send-btn">送信</button>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
 <!-- 過去データ取込 -->
 <div class="page" id="page-import">
   <div class="card" style="border-left:4px solid var(--g400)">
@@ -413,14 +378,6 @@ tbody tr.warn-row td{background:var(--a50)}
       </div>
       <button class="btn btn-sm btn-primary" onclick="testGAS()">接続テスト</button>
       <span id="gas-status" class="conn-status conn-wait" style="margin-left:8px">未テスト</span>
-    </div>
-    <div class="settings-box">
-      <div class="settings-title">✨ Claude AI（Anthropic API）</div>
-      <div class="settings-row">
-        <label>APIキー</label>
-        <input type="password" id="cfg-api" placeholder="sk-ant-..." oninput="saveCfg()">
-      </div>
-      <div style="font-size:11px;color:var(--gray500);margin-top:6px">キーは <a href="https://console.anthropic.com" target="_blank" style="color:var(--g500)">console.anthropic.com</a> で取得できます。キーはこのブラウザのlocalStorageに保存され、次回以降は自動で読み込まれます（外部には送信されません。共用PCでは注意）。</div>
     </div>
     <div class="settings-box">
       <div class="settings-title">📋 GASセットアップ手順</div>
@@ -539,28 +496,24 @@ tbody tr.warn-row td{background:var(--a50)}
 // =============================================
 // 設定（起動時にHTMLから読み込む）
 // =============================================
-let CFG = { gasUrl: 'https://script.google.com/macros/s/AKfycbzFTt038uXCc8Z9A3uaKaoMYvkJOXsMb8n0ZDB7YWodZMFyA3M1M3VBztF4wfbIXY2njA/exec', apiKey: '' };
+let CFG = { gasUrl: 'https://script.google.com/macros/s/AKfycbzFTt038uXCc8Z9A3uaKaoMYvkJOXsMb8n0ZDB7YWodZMFyA3M1M3VBztF4wfbIXY2njA/exec' };
 
 function loadCfg() {
   // localStorageに保存された設定を復元（無ければHTML内の初期値のまま）
   try {
     const saved = JSON.parse(localStorage.getItem('grapeCfg') || '{}');
     if (saved.gasUrl) { CFG.gasUrl = saved.gasUrl; document.getElementById('cfg-gas').value = saved.gasUrl; }
-    if (saved.apiKey) { CFG.apiKey = saved.apiKey; document.getElementById('cfg-api').value = saved.apiKey; }
   } catch(e) { /* 破損時は初期値のまま */ }
 }
 function saveCfg() {
   CFG.gasUrl  = document.getElementById('cfg-gas').value.trim();
-  CFG.apiKey  = document.getElementById('cfg-api').value.trim();
-  try { localStorage.setItem('grapeCfg', JSON.stringify({ gasUrl: CFG.gasUrl, apiKey: CFG.apiKey })); } catch(e) {}
+  try { localStorage.setItem('grapeCfg', JSON.stringify({ gasUrl: CFG.gasUrl })); } catch(e) {}
   updateConnBadge();
 }
 function updateConnBadge() {
   const el = document.getElementById('conn-badge');
-  if (CFG.gasUrl && CFG.apiKey) {
+  if (CFG.gasUrl) {
     el.className = 'conn-status conn-ok'; el.textContent = '✅ 接続済み';
-  } else if (CFG.gasUrl) {
-    el.className = 'conn-status conn-wait'; el.textContent = '⚙️ APIキー未設定';
   } else {
     el.className = 'conn-status conn-ng'; el.textContent = '❌ GAS未設定';
   }
@@ -576,9 +529,8 @@ const pgLbl = {
   history:   ['作業履歴','全作業記録'],
   varieties: ['品種管理','4品種 / 10本'],
   pesticides:['農薬マスタ','登録農薬・使用回数管理'],
-  ai:        ['AI防除提案','Claudeによるリアルタイム分析'],
   import:    ['過去データ取込','既存スプレッドシートを統合'],
-  settings:  ['設定','GAS URL・APIキーの設定'],
+  settings:  ['設定','GAS URLの設定'],
 };
 function showPage(id, btn) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -1215,78 +1167,6 @@ async function loadDashboard() {
   } catch(e) {
     if (CFG.gasUrl) toast('⚠️ ダッシュボード読み込みエラー: ' + e.message);
   }
-}
-
-// =============================================
-// Claude AI
-// =============================================
-async function sendAI() {
-  if (!CFG.apiKey) { alert('設定画面でClaude APIキーを入力してください。'); showPage('settings', document.querySelector('.ni:last-child')); return; }
-  const inp = document.getElementById('ai-input');
-  const text = inp.value.trim(); if (!text) return;
-  const box = document.getElementById('ai-messages');
-  box.insertAdjacentHTML('beforeend', `<div class="msg msg-user"><div class="msg-sender">あなた</div><div class="bubble">${text}</div></div>`);
-  inp.value = '';
-  const typingEl = document.createElement('div');
-  typingEl.className = 'ai-typing'; typingEl.id = 'ai-typing'; typingEl.textContent = 'Claude が入力中...';
-  box.appendChild(typingEl);
-  box.scrollTop = box.scrollHeight;
-  document.getElementById('ai-send-btn').disabled = true;
-  const context = `あなたはブドウ栽培の専門アドバイザーです。以下の圃場情報をもとに回答してください。
-【圃場情報】場所：兵庫県丹波篠山市、品種：ナガノパープル(1本/2023年)・シャインマスカット(3本/2023〜2024年)・雄宝(2本/2024〜2025年)・マイハート(4本/2024年)
-【栽培方式】8ポット圃場、雨よけ栽培
-【最新防除実績】${bojoCache.slice(0,5).map(b=>b['日付']+' '+b['農薬名']+'('+b['希釈倍率']+')').join('、')}
-質問に対して具体的かつ実践的に日本語で回答してください。`;
-  try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-api-key': CFG.apiKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
-      body: JSON.stringify({ model: 'claude-opus-4-8', max_tokens: 4000, thinking: { type: 'adaptive' }, system: context, messages: [{ role: 'user', content: text }] }),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error?.message || `HTTP ${res.status}`);
-    // thinkingブロックが先頭に来ることがあるためtextブロックを探す
-    const reply = data.content?.find(b => b.type === 'text')?.text || '回答を取得できませんでした。';
-    document.getElementById('ai-typing')?.remove();
-    box.insertAdjacentHTML('beforeend', `<div class="msg msg-ai"><div class="msg-sender">Claude</div><div class="bubble">${reply}</div></div>`);
-  } catch(e) {
-    document.getElementById('ai-typing')?.remove();
-    box.insertAdjacentHTML('beforeend', `<div class="msg msg-ai"><div class="msg-sender">エラー</div><div class="bubble" style="color:var(--r600)">APIエラー: ${e.message}</div></div>`);
-  }
-  box.scrollTop = box.scrollHeight;
-  document.getElementById('ai-send-btn').disabled = false;
-}
-
-async function generateAIPlan() {
-  if (!CFG.apiKey) { alert('設定画面でClaude APIキーを入力してください。'); return; }
-  const btn = document.getElementById('ai-gen-btn');
-  btn.disabled = true; btn.textContent = '⏳ 分析中...';
-  const result = document.getElementById('ai-plan-result');
-  result.innerHTML = '<div style="color:var(--gray400);font-size:13px">Claudeが防除履歴を分析しています...</div>';
-  const yr = document.getElementById('ai-year').value;
-  const concern = document.getElementById('ai-concern').value;
-  const bojoSummary = bojoCache.map(b => `${b['日付']} ${b['農薬名']} ${b['希釈倍率']} (${b['対象病害虫']||'—'})`).join('\n');
-  const prompt = `丹波篠山市のブドウ圃場（8ポット栽培）の${yr}年の防除プランを提案してください。
-品種：ナガノパープル・シャインマスカット・雄宝・マイハート（計10本）
-主な懸念：${concern === 'all' ? '全般（べと病・灰色かび病・ウドンコ病・害虫）' : concern}
-過去の防除記録（直近）：\n${bojoSummary || '記録なし'}
-農薬マスタ：${pestMaster.map(p=>p['農薬名']+'('+p['年間上限']+'制限)').join('、')}
-月別の推奨防除スケジュール、使用農薬、注意事項を具体的に提案してください。年間使用回数制限にも注意してください。`;
-  try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-api-key': CFG.apiKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
-      body: JSON.stringify({ model: 'claude-opus-4-8', max_tokens: 8000, thinking: { type: 'adaptive' }, messages: [{ role: 'user', content: prompt }] }),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error?.message || `HTTP ${res.status}`);
-    const reply = (data.content?.find(b => b.type === 'text')?.text || '回答を取得できませんでした。').replace(/\n/g, '<br>');
-    result.innerHTML = `<div style="background:var(--g50);border:1px solid var(--g200);border-radius:var(--rads);padding:16px;font-size:13px;line-height:1.8;color:var(--gray700)">${reply}</div>`;
-    document.getElementById('dash-ai-preview').textContent = 'AI提案が生成されました → AI防除提案タブで確認';
-  } catch(e) {
-    result.innerHTML = `<div style="color:var(--r600);font-size:13px">エラー: ${e.message}</div>`;
-  }
-  btn.disabled = false; btn.textContent = '✨ AIに防除プランを提案させる';
 }
 
 // =============================================
