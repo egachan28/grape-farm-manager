@@ -359,7 +359,7 @@ tbody tr.warn-row td{background:var(--a50)}
         <div class="card-title">📌 過去データをもとに自動提案を生成</div>
         <div class="tip">防除記録・作業履歴をClaudeが分析して今後のプランを提案します</div>
         <div class="fg fg2" style="margin-bottom:12px">
-          <div class="form-group"><label>対象年</label><select id="ai-year"><option value="2025">2025年</option><option value="2026">2026年</option></select></div>
+          <div class="form-group"><label>対象年</label><select id="ai-year"><option value="2025">2025年</option><option value="2026" selected>2026年</option></select></div>
           <div class="form-group"><label>主な懸念</label><select id="ai-concern"><option value="all">すべて</option><option value="beto">べと病</option><option value="hai">灰色かび病</option><option value="udon">ウドンコ病</option><option value="insect">害虫全般</option></select></div>
         </div>
         <button class="btn btn-primary" onclick="generateAIPlan()" id="ai-gen-btn">✨ AIに防除プランを提案させる</button>
@@ -420,7 +420,7 @@ tbody tr.warn-row td{background:var(--a50)}
         <label>APIキー</label>
         <input type="password" id="cfg-api" placeholder="sk-ant-..." oninput="saveCfg()">
       </div>
-      <div style="font-size:11px;color:var(--gray500);margin-top:6px">キーは <a href="https://console.anthropic.com" target="_blank" style="color:var(--g500)">console.anthropic.com</a> で取得できます。このHTMLファイル内にのみ保存されます（ブラウザのlocalStorageは使用しません）。</div>
+      <div style="font-size:11px;color:var(--gray500);margin-top:6px">キーは <a href="https://console.anthropic.com" target="_blank" style="color:var(--g500)">console.anthropic.com</a> で取得できます。キーはこのブラウザのlocalStorageに保存され、次回以降は自動で読み込まれます（外部には送信されません。共用PCでは注意）。</div>
     </div>
     <div class="settings-box">
       <div class="settings-title">📋 GASセットアップ手順</div>
@@ -542,14 +542,17 @@ tbody tr.warn-row td{background:var(--a50)}
 let CFG = { gasUrl: 'https://script.google.com/macros/s/AKfycbzFTt038uXCc8Z9A3uaKaoMYvkJOXsMb8n0ZDB7YWodZMFyA3M1M3VBztF4wfbIXY2njA/exec', apiKey: '' };
 
 function loadCfg() {
-  const stored = document.getElementById('cfg-gas').value || '';
-  const storedApi = document.getElementById('cfg-api').value || '';
-  CFG.gasUrl = stored;
-  CFG.apiKey = storedApi;
+  // localStorageに保存された設定を復元（無ければHTML内の初期値のまま）
+  try {
+    const saved = JSON.parse(localStorage.getItem('grapeCfg') || '{}');
+    if (saved.gasUrl) { CFG.gasUrl = saved.gasUrl; document.getElementById('cfg-gas').value = saved.gasUrl; }
+    if (saved.apiKey) { CFG.apiKey = saved.apiKey; document.getElementById('cfg-api').value = saved.apiKey; }
+  } catch(e) { /* 破損時は初期値のまま */ }
 }
 function saveCfg() {
   CFG.gasUrl  = document.getElementById('cfg-gas').value.trim();
   CFG.apiKey  = document.getElementById('cfg-api').value.trim();
+  try { localStorage.setItem('grapeCfg', JSON.stringify({ gasUrl: CFG.gasUrl, apiKey: CFG.apiKey })); } catch(e) {}
   updateConnBadge();
 }
 function updateConnBadge() {
@@ -1238,10 +1241,12 @@ async function sendAI() {
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': CFG.apiKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
-      body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 1000, system: context, messages: [{ role: 'user', content: text }] }),
+      body: JSON.stringify({ model: 'claude-opus-4-8', max_tokens: 4000, thinking: { type: 'adaptive' }, system: context, messages: [{ role: 'user', content: text }] }),
     });
     const data = await res.json();
-    const reply = data.content?.[0]?.text || 'エラーが発生しました。';
+    if (!res.ok) throw new Error(data.error?.message || `HTTP ${res.status}`);
+    // thinkingブロックが先頭に来ることがあるためtextブロックを探す
+    const reply = data.content?.find(b => b.type === 'text')?.text || '回答を取得できませんでした。';
     document.getElementById('ai-typing')?.remove();
     box.insertAdjacentHTML('beforeend', `<div class="msg msg-ai"><div class="msg-sender">Claude</div><div class="bubble">${reply}</div></div>`);
   } catch(e) {
@@ -1271,10 +1276,11 @@ async function generateAIPlan() {
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': CFG.apiKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
-      body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 2000, messages: [{ role: 'user', content: prompt }] }),
+      body: JSON.stringify({ model: 'claude-opus-4-8', max_tokens: 8000, thinking: { type: 'adaptive' }, messages: [{ role: 'user', content: prompt }] }),
     });
     const data = await res.json();
-    const reply = (data.content?.[0]?.text || 'エラーが発生しました。').replace(/\n/g, '<br>');
+    if (!res.ok) throw new Error(data.error?.message || `HTTP ${res.status}`);
+    const reply = (data.content?.find(b => b.type === 'text')?.text || '回答を取得できませんでした。').replace(/\n/g, '<br>');
     result.innerHTML = `<div style="background:var(--g50);border:1px solid var(--g200);border-radius:var(--rads);padding:16px;font-size:13px;line-height:1.8;color:var(--gray700)">${reply}</div>`;
     document.getElementById('dash-ai-preview').textContent = 'AI提案が生成されました → AI防除提案タブで確認';
   } catch(e) {
@@ -1379,6 +1385,7 @@ async function mergeImport() {
 // 初期化
 // =============================================
 function init() {
+  loadCfg(); // localStorageからGAS URL・APIキーを復元
   updateConnBadge();
   // まずUIを表示（同期処理）
   renderMaster();
